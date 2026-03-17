@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-18
+
+### Added
+- **Issue Solver**: Classify GitHub issues by labels/keywords, filter by solvability, LLM-powered solving
+- **Framework Strategies**: Auto-detect Django, Flask, FastAPI, React/Next.js, Express with tailored analysis
+- **Quality Scorer**: 7-check quality gate before PR submission (change size, commit format, debug code, placeholders)
+- **CLI**: New `solve` command for issue-driven contributions
+- Tests: 169 total tests covering all modules
+
+## [0.2.0] - 2026-03-18
+
+### Added
+- **Retry Utilities**: `async_retry` decorator with exponential backoff + jitter
+- **LRU Cache**: Response caching for GitHub API and LLM calls
+- **Test Suite**: 128 tests across all modules (config, models, memory, LLM, GitHub, discovery, analyzer, generator, PR manager, CLI)
+- Integration tests for pipeline dry run and analyze-only mode
+
 ## [0.1.0] - 2026-03-17
 
 ### Added

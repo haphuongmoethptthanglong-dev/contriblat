@@ -4,6 +4,7 @@ Usage:
     contribai run           Auto-discover repos and contribute
     contribai target <url>  Target a specific repo
     contribai analyze <url> Analyze a repo without contributing
+    contribai solve <url>   Solve issues in a specific repo
     contribai status        Show status of submitted PRs
     contribai stats         Show overall statistics
     contribai config        Show current configuration
@@ -204,6 +205,79 @@ def analyze(ctx, url):
             )
 
         console.print(table)
+
+
+@cli.command()
+@click.argument("url")
+@click.option("--max-issues", "-n", type=int, default=5, help="Max issues to process")
+@click.option("--dry-run", is_flag=True, help="Analyze issues without creating PRs")
+@click.pass_context
+def solve(ctx, url, max_issues, dry_run):
+    """Solve open issues in a specific repository."""
+    print_banner()
+
+    config = load_config(ctx.obj["config_path"])
+
+    if not config.github.token:
+        console.print("[red]❌ GitHub token not configured![/red]")
+        sys.exit(1)
+
+    if not config.llm.api_key:
+        console.print("[red]❌ LLM API key not configured![/red]")
+        sys.exit(1)
+
+    mode = "[yellow]DRY RUN[/yellow]" if dry_run else "[green]LIVE[/green]"
+    console.print(f"\n🎯 Solving issues in: {url} ({mode})")
+    console.print(f"   Max issues: {max_issues}")
+    console.print(f"   LLM: {config.llm.provider} ({config.llm.model})\n")
+
+    from contribai.github.client import GitHubClient
+    from contribai.llm.provider import create_llm_provider
+    from contribai.issues.solver import IssueSolver
+
+    async def _solve():
+        parts = url.rstrip("/").split("/")
+        owner, repo_name = parts[-2], parts[-1]
+
+        llm = create_llm_provider(config.llm)
+        github = GitHubClient(token=config.github.token)
+
+        try:
+            repo = await github.get_repo_details(owner, repo_name)
+            issues = await github.get_open_issues(owner, repo_name, per_page=20)
+
+            solver = IssueSolver(llm=llm, github=github)
+            solvable = solver.filter_solvable(issues, max_complexity=3)[:max_issues]
+
+            console.print(f"Found [bold]{len(issues)}[/bold] open issues")
+            console.print(f"[green]{len(solvable)}[/green] are solvable\n")
+
+            if not solvable:
+                console.print("[dim]No solvable issues found.[/dim]")
+                return
+
+            table = Table(title="🎯 Solvable Issues", show_lines=True)
+            table.add_column("#", width=5)
+            table.add_column("Category", width=12)
+            table.add_column("Title", width=40)
+            table.add_column("Labels", width=15)
+
+            for issue in solvable:
+                cat = solver.classify_issue(issue)
+                table.add_row(
+                    str(issue.number),
+                    cat.value,
+                    issue.title[:40],
+                    ", ".join(issue.labels[:2]) or "-",
+                )
+
+            console.print(table)
+
+        finally:
+            await github.close()
+            await llm.close()
+
+    asyncio.run(_solve())
 
 
 @cli.command()
