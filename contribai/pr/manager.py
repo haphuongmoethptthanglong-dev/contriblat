@@ -357,20 +357,20 @@ We appreciate your time reviewing this contribution!
             user = comment.get("user", {})
             body = comment.get("body", "")
             # Detect bot compliance comments
-            if user.get("type") == "Bot" or user.get("login", "").endswith("[bot]"):
-                if any(
-                    keyword in body.lower()
-                    for keyword in [
-                        "doesn't follow conventional commit",
-                        "no issue referenced",
-                        "doesn't fully meet",
-                        "pr title",
-                        "needs:title",
-                        "needs:issue",
-                        "needs:compliance",
-                    ]
-                ):
-                    bot_issues.append(body)
+            is_bot = user.get("type") == "Bot" or user.get("login", "").endswith("[bot]")
+            if is_bot and any(
+                keyword in body.lower()
+                for keyword in [
+                    "doesn't follow conventional commit",
+                    "no issue referenced",
+                    "doesn't fully meet",
+                    "pr title",
+                    "needs:title",
+                    "needs:issue",
+                    "needs:compliance",
+                ]
+            ):
+                bot_issues.append(body)
 
         if not bot_issues:
             logger.info("✅ PR #%d passed compliance checks", pr_result.pr_number)
@@ -390,25 +390,26 @@ We appreciate your time reviewing this contribution!
         if "conventional commit" in all_comments or "needs:title" in all_comments:
             new_title = contribution.title
             # If title still has emoji format, convert to conventional
-            if any(
-                new_title.startswith(prefix)
-                for prefix in ["🔒", "✨", "📝", "🎨", "⚡", "🚀", "♻️", "🔧"]
+            if (
+                any(
+                    new_title.startswith(prefix)
+                    for prefix in ["🔒", "✨", "📝", "🎨", "⚡", "🚀", "♻️", "🔧"]
+                )
+                and guidelines
+                and guidelines.has_guidelines
             ):
-                if guidelines and guidelines.has_guidelines:
-                    from contribai.github.guidelines import (
-                        adapt_pr_title,
-                        extract_scope_from_path,
-                    )
+                from contribai.github.guidelines import (
+                    adapt_pr_title,
+                    extract_scope_from_path,
+                )
 
-                    scope = extract_scope_from_path(
-                        contribution.finding.file_path or "", guidelines
-                    )
-                    new_title = adapt_pr_title(
-                        contribution.finding.title,
-                        contribution.finding.type.value,
-                        guidelines,
-                        scope=scope,
-                    )
+                scope = extract_scope_from_path(contribution.finding.file_path or "", guidelines)
+                new_title = adapt_pr_title(
+                    contribution.finding.title,
+                    contribution.finding.type.value,
+                    guidelines,
+                    scope=scope,
+                )
 
             try:
                 await self._github.update_pull_request(

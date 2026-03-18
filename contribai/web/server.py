@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import BackgroundTasks, Depends, FastAPI
 from fastapi.responses import HTMLResponse
 
+from contribai import __version__
 from contribai.core.config import ContribAIConfig, load_config
 from contribai.orchestrator.memory import Memory
 from contribai.orchestrator.pipeline import ContribPipeline
@@ -73,7 +74,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="ContribAI Dashboard",
-    version="0.7.0",
+    version=__version__,
     lifespan=lifespan,
 )
 
@@ -96,7 +97,7 @@ async def dashboard():
 @app.get("/api/health")
 async def health():
     """Health check endpoint."""
-    return {"status": "ok", "version": "0.7.0"}
+    return {"status": "ok", "version": __version__}
 
 
 @app.get("/api/stats")
