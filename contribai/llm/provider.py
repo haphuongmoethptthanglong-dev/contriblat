@@ -60,14 +60,31 @@ class LLMProvider(ABC):
 
 
 class GeminiProvider(LLMProvider):
-    """Google Gemini provider - primary/default."""
+    """Google Gemini provider - primary/default.
+
+    Supports both API key auth and Vertex AI (Google Cloud).
+    Set vertex_project in config to use Vertex AI.
+    """
 
     def __init__(self, config: LLMConfig):
         super().__init__(config)
         try:
             from google import genai
 
-            self._client = genai.Client(api_key=config.api_key)
+            if config.use_vertex:
+                self._client = genai.Client(
+                    vertexai=True,
+                    project=config.vertex_project,
+                    location=config.vertex_location,
+                )
+                logger.info(
+                    "Gemini via Vertex AI (project=%s, location=%s)",
+                    config.vertex_project,
+                    config.vertex_location,
+                )
+            else:
+                self._client = genai.Client(api_key=config.api_key)
+                logger.info("Gemini via API key")
         except ImportError as e:
             raise LLMError("google-genai package not installed") from e
 

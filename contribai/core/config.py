@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
 from pathlib import Path
 from typing import Literal
 
@@ -19,6 +21,25 @@ class GitHubConfig(BaseModel):
     max_prs_per_day: int = 10
     rate_limit_buffer: int = 100
 
+    @model_validator(mode="after")
+    def resolve_token(self):
+        """Fallback: $GITHUB_TOKEN env var → `gh auth token` CLI."""
+        if not self.token:
+            self.token = os.environ.get("GITHUB_TOKEN", "")
+        if not self.token:
+            try:
+                result = subprocess.run(
+                    ["gh", "auth", "token"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    self.token = result.stdout.strip()
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                pass
+        return self
+
 
 class LLMConfig(BaseModel):
     """LLM provider configuration."""
@@ -29,9 +50,26 @@ class LLMConfig(BaseModel):
     temperature: float = 0.3
     max_tokens: int = 8192
     base_url: str | None = None  # for ollama or custom endpoints
+    # Vertex AI (Google Cloud)
+    vertex_project: str = ""
+    vertex_location: str = "us-central1"
 
     @model_validator(mode="after")
-    def set_defaults_per_provider(self):
+    def resolve_api_key_and_defaults(self):
+        """Fallback: env vars for API keys + default model per provider."""
+        if not self.api_key:
+            env_map = {
+                "gemini": "GEMINI_API_KEY",
+                "openai": "OPENAI_API_KEY",
+                "anthropic": "ANTHROPIC_API_KEY",
+            }
+            env_var = env_map.get(self.provider, "")
+            if env_var:
+                self.api_key = os.environ.get(env_var, "")
+        # Vertex AI: project from env
+        if not self.vertex_project:
+            self.vertex_project = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+        # Default model per provider
         if self.model == "gemini-2.5-flash" and self.provider != "gemini":
             default_models = {
                 "openai": "gpt-4o",
@@ -40,6 +78,11 @@ class LLMConfig(BaseModel):
             }
             self.model = default_models.get(self.provider, self.model)
         return self
+
+    @property
+    def use_vertex(self) -> bool:
+        """Whether to use Vertex AI instead of API key auth."""
+        return bool(self.vertex_project)
 
 
 class AnalysisConfig(BaseModel):
