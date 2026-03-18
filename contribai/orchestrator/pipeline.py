@@ -346,6 +346,17 @@ class ContribPipeline:
                     branch=pr_result.branch_name,
                     fork=pr_result.fork_full_name,
                 )
+
+                # 5. Post-PR compliance check & auto-fix
+                try:
+                    logger.info("🔍 Checking PR compliance...")
+                    await self._pr_manager.check_compliance_and_fix(
+                        pr_result,
+                        contribution,
+                        guidelines=guidelines,
+                    )
+                except Exception as e:
+                    logger.warning("Compliance check failed: %s", e)
             except Exception as e:
                 error = f"PR creation failed for {finding.title}: {e}"
                 logger.error(error)

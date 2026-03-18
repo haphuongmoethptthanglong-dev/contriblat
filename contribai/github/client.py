@@ -251,6 +251,47 @@ class GitHubClient:
         logger.info("Created PR #%d on %s/%s: %s", data["number"], owner, repo, title)
         return data
 
+    async def update_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        pr_number: int,
+        *,
+        title: str | None = None,
+        body: str | None = None,
+    ) -> dict:
+        """Update a PR's title and/or body."""
+        payload: dict[str, str] = {}
+        if title is not None:
+            payload["title"] = title
+        if body is not None:
+            payload["body"] = body
+        data = await self._request(
+            "PATCH", f"/repos/{owner}/{repo}/pulls/{pr_number}", json=payload
+        )
+        logger.info("Updated PR #%d on %s/%s", pr_number, owner, repo)
+        return data
+
+    async def create_issue(
+        self,
+        owner: str,
+        repo: str,
+        title: str,
+        body: str,
+        labels: list[str] | None = None,
+    ) -> dict:
+        """Create an issue on a repository."""
+        payload: dict[str, Any] = {"title": title, "body": body}
+        if labels:
+            payload["labels"] = labels
+        data = await self._post(f"/repos/{owner}/{repo}/issues", json=payload)
+        logger.info("Created issue #%d on %s/%s: %s", data["number"], owner, repo, title)
+        return data
+
+    async def get_pr_comments(self, owner: str, repo: str, pr_number: int) -> list[dict]:
+        """Get comments on a pull request (issue comments)."""
+        return await self._get(f"/repos/{owner}/{repo}/issues/{pr_number}/comments")
+
     async def get_authenticated_user(self) -> dict:
         """Get the authenticated user's profile."""
         return await self._get("/user")

@@ -41,7 +41,9 @@ class PRManager:
         1. Fork the target repo (if not already forked)
         2. Create a feature branch on the fork
         3. Commit all file changes
+        3b. Create a linked issue (if repo requires it)
         4. Create the pull request
+        5. Check compliance and auto-fix if needed
         """
         user = await self._get_user()
         username = user["login"]
@@ -83,6 +85,11 @@ class PRManager:
                     sha=sha,
                 )
 
+            # 3b. Create linked issue if repo likely requires it
+            issue_number = None
+            if guidelines and guidelines.has_guidelines:
+                issue_number = await self._create_issue_for_finding(contribution, target_repo)
+
             # 4. Create PR
             if guidelines and guidelines.has_guidelines:
                 from contribai.github.guidelines import adapt_pr_body
@@ -90,6 +97,16 @@ class PRManager:
                 pr_body = adapt_pr_body(contribution, guidelines)
             else:
                 pr_body = self._generate_pr_body(contribution)
+
+            # Inject issue link into body
+            if issue_number:
+                pr_body = pr_body.replace("Closes N/A", f"Closes #{issue_number}").replace(
+                    "Closes #\n", f"Closes #{issue_number}\n"
+                )
+                # If no placeholder found, prepend
+                if f"#{issue_number}" not in pr_body:
+                    pr_body = f"Closes #{issue_number}\n\n{pr_body}"
+
             head = f"{fork_owner}:{branch}"
 
             pr_data = await self._github.create_pull_request(
@@ -208,3 +225,229 @@ We appreciate your time reviewing this contribution!
                 return PRStatus.OPEN
         except Exception:
             return PRStatus.PENDING
+
+    # ── Auto Issue Creation ─────────────────────────────────────────────
+
+    async def _create_issue_for_finding(
+        self,
+        contribution: Contribution,
+        target_repo: Repository,
+    ) -> int | None:
+        """Create an issue describing the finding before creating a PR.
+
+        Returns the issue number, or None if creation failed.
+        """
+        finding = contribution.finding
+
+        # Map contribution type to issue label
+        type_labels = {
+            ContributionType.SECURITY_FIX: "bug",
+            ContributionType.CODE_QUALITY: "bug",
+            ContributionType.DOCS_IMPROVE: "documentation",
+            ContributionType.UI_UX_FIX: "bug",
+            ContributionType.PERFORMANCE_OPT: "perf",
+            ContributionType.FEATURE_ADD: "enhancement",
+            ContributionType.REFACTOR: "enhancement",
+        }
+
+        # Use conventional commit style title for issue
+        type_map = {
+            ContributionType.SECURITY_FIX: "fix",
+            ContributionType.CODE_QUALITY: "fix",
+            ContributionType.DOCS_IMPROVE: "docs",
+            ContributionType.UI_UX_FIX: "fix",
+            ContributionType.PERFORMANCE_OPT: "perf",
+            ContributionType.FEATURE_ADD: "feat",
+            ContributionType.REFACTOR: "refactor",
+        }
+
+        prefix = type_map.get(finding.type, "fix")
+
+        # Extract scope from file path
+        scope = ""
+        if finding.file_path:
+            parts = finding.file_path.split("/")
+            if (len(parts) >= 2 and parts[0] in ("packages", "apps", "libs")) or (
+                len(parts) >= 2 and parts[0] == "src"
+            ):
+                scope = parts[1]
+
+        if scope:
+            issue_title = f"{prefix}({scope}): {finding.title.lower()}"
+        else:
+            issue_title = f"{prefix}: {finding.title.lower()}"
+
+        issue_body = (
+            f"## Description\n\n"
+            f"{finding.description}\n\n"
+            f"**Severity**: `{finding.severity.value}`\n"
+            f"**File**: `{finding.file_path}`\n\n"
+            f"## Expected Behavior\n\n"
+            f"The code should handle this case properly to avoid "
+            f"unexpected errors or degraded quality.\n\n"
+            f"---\n"
+            f"*Found by [ContribAI](https://github.com/tang-vu/ContribAI) "
+            f"automated code analysis.*"
+        )
+
+        try:
+            label = type_labels.get(finding.type, "bug")
+            try:
+                data = await self._github.create_issue(
+                    target_repo.owner,
+                    target_repo.name,
+                    title=issue_title,
+                    body=issue_body,
+                    labels=[label],
+                )
+            except Exception:
+                # Labels might not exist, retry without labels
+                data = await self._github.create_issue(
+                    target_repo.owner,
+                    target_repo.name,
+                    title=issue_title,
+                    body=issue_body,
+                )
+
+            issue_number = data["number"]
+            logger.info(
+                "📋 Created issue #%d on %s: %s",
+                issue_number,
+                target_repo.full_name,
+                issue_title,
+            )
+            return issue_number
+
+        except Exception as e:
+            logger.warning("Failed to create issue: %s", e)
+            return None
+
+    # ── Post-PR Compliance ──────────────────────────────────────────────
+
+    async def check_compliance_and_fix(
+        self,
+        pr_result: PRResult,
+        contribution: Contribution,
+        guidelines=None,
+    ) -> bool:
+        """Check bot comments for compliance issues and auto-fix.
+
+        Waits briefly for bots to post, then reads comments and fixes
+        any flagged issues (title format, missing issue link, etc.).
+
+        Returns True if PR is compliant (or was auto-fixed).
+        """
+        import asyncio
+
+        repo = pr_result.repo
+
+        # Wait for bots to comment
+        await asyncio.sleep(10)
+
+        try:
+            comments = await self._github.get_pr_comments(
+                repo.owner, repo.name, pr_result.pr_number
+            )
+        except Exception as e:
+            logger.warning("Could not fetch PR comments: %s", e)
+            return True  # Don't block on this
+
+        bot_issues = []
+        for comment in comments:
+            user = comment.get("user", {})
+            body = comment.get("body", "")
+            # Detect bot compliance comments
+            if user.get("type") == "Bot" or user.get("login", "").endswith("[bot]"):
+                if any(
+                    keyword in body.lower()
+                    for keyword in [
+                        "doesn't follow conventional commit",
+                        "no issue referenced",
+                        "doesn't fully meet",
+                        "pr title",
+                        "needs:title",
+                        "needs:issue",
+                        "needs:compliance",
+                    ]
+                ):
+                    bot_issues.append(body)
+
+        if not bot_issues:
+            logger.info("✅ PR #%d passed compliance checks", pr_result.pr_number)
+            return True
+
+        logger.info(
+            "🔧 PR #%d has %d compliance issues, auto-fixing...",
+            pr_result.pr_number,
+            len(bot_issues),
+        )
+
+        # Detect specific issues and fix
+        all_comments = " ".join(bot_issues).lower()
+        needs_fix = False
+
+        # Fix title format
+        if "conventional commit" in all_comments or "needs:title" in all_comments:
+            new_title = contribution.title
+            # If title still has emoji format, convert to conventional
+            if any(
+                new_title.startswith(prefix)
+                for prefix in ["🔒", "✨", "📝", "🎨", "⚡", "🚀", "♻️", "🔧"]
+            ):
+                if guidelines and guidelines.has_guidelines:
+                    from contribai.github.guidelines import (
+                        adapt_pr_title,
+                        extract_scope_from_path,
+                    )
+
+                    scope = extract_scope_from_path(
+                        contribution.finding.file_path or "", guidelines
+                    )
+                    new_title = adapt_pr_title(
+                        contribution.finding.title,
+                        contribution.finding.type.value,
+                        guidelines,
+                        scope=scope,
+                    )
+
+            try:
+                await self._github.update_pull_request(
+                    repo.owner, repo.name, pr_result.pr_number, title=new_title
+                )
+                logger.info("Fixed PR title → %s", new_title)
+                needs_fix = True
+            except Exception as e:
+                logger.warning("Failed to fix title: %s", e)
+
+        # Fix missing issue reference
+        if "no issue referenced" in all_comments or "needs:issue" in all_comments:
+            # Create issue if we didn't already
+            issue_number = await self._create_issue_for_finding(contribution, pr_result.repo)
+            if issue_number:
+                try:
+                    # Get current body and inject issue link
+                    pr_data = await self._github._get(
+                        f"/repos/{repo.owner}/{repo.name}/pulls/{pr_result.pr_number}"
+                    )
+                    current_body = pr_data.get("body", "")
+                    new_body = current_body.replace("Closes N/A", f"Closes #{issue_number}")
+                    if f"#{issue_number}" not in new_body:
+                        new_body = f"Closes #{issue_number}\n\n{new_body}"
+
+                    await self._github.update_pull_request(
+                        repo.owner,
+                        repo.name,
+                        pr_result.pr_number,
+                        body=new_body,
+                    )
+                    logger.info("Linked issue #%d to PR", issue_number)
+                    needs_fix = True
+                except Exception as e:
+                    logger.warning("Failed to link issue: %s", e)
+
+        if needs_fix:
+            logger.info("🔄 PR #%d compliance auto-fixed", pr_result.pr_number)
+        else:
+            logger.warning("⚠️ PR #%d has unresolved compliance issues", pr_result.pr_number)
+
+        return needs_fix
