@@ -298,6 +298,32 @@ class GitHubClient:
 
     # ── Helpers ────────────────────────────────────────────────────────────
 
+    async def list_pull_requests(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "all",
+        per_page: int = 30,
+    ) -> list[dict]:
+        """List pull requests on a repository.
+
+        Args:
+            owner: Repo owner
+            repo: Repo name
+            state: 'open', 'closed', or 'all'
+            per_page: Number of PRs to return (max 100)
+        """
+        return await self._get(
+            f"/repos/{owner}/{repo}/pulls",
+            params={
+                "state": state,
+                "per_page": min(per_page, 100),
+                "sort": "created",
+                "direction": "desc",
+            },
+        )
+
     # ── CI / Check Runs ────────────────────────────────────────────────────
 
     async def get_combined_status(self, owner: str, repo: str, ref: str) -> dict:

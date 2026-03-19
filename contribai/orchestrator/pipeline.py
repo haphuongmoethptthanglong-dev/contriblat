@@ -337,40 +337,67 @@ class ContribPipeline:
         )
 
         # Filter out findings that overlap with previously submitted PRs
+        # Check BOTH local memory AND GitHub API for existing PRs
+        past_titles_lower: set[str] = set()
+        past_file_paths: set[str] = set()
+
+        # 1) Local memory
         past_prs = await self._memory.get_repo_prs(repo.full_name)
-        if past_prs:
-            past_files = set()
-            past_titles_lower = set()
-            for pr in past_prs:
-                # Extract file paths from PR titles/branches
-                past_titles_lower.add(pr.get("title", "").lower())
-                # Branch names contain the finding topic
-                branch = pr.get("branch", "")
-                if branch:
-                    past_files.add(branch)
+        for pr in past_prs:
+            past_titles_lower.add(pr.get("title", "").lower())
 
-            original_count = len(analysis.top_findings[:max_prs])
-            filtered_findings = []
-            for finding in analysis.top_findings[:max_prs]:
-                # Check if this finding's file was already targeted by a past PR
-                title_lower = finding.title.lower()
-                is_dup = any(_titles_similar(title_lower, pt) for pt in past_titles_lower)
-                if is_dup:
-                    logger.info(
-                        "⏭️ Skipping duplicate finding: %s (similar PR exists)",
-                        finding.title,
-                    )
-                    continue
-                filtered_findings.append(finding)
+        # 2) GitHub API — fetch recent PRs (all states) to catch external PRs too
+        try:
+            github_prs = await self._github.list_pull_requests(
+                repo.owner, repo.name, state="all", per_page=50
+            )
+            for gpr in github_prs:
+                past_titles_lower.add(gpr.get("title", "").lower())
+                # Extract file paths from branch name (contribai branches encode the topic)
+                head = gpr.get("head", {})
+                branch_label = head.get("label", "")
+                if "contribai/" in branch_label:
+                    past_titles_lower.add(gpr.get("title", "").lower())
+                # Track all recently-targeted file info from PR body
+                body = gpr.get("body", "") or ""
+                # Extract file paths mentioned in PR bodies (e.g. `src/foo/bar.ts`)
+                import re
 
-            if len(filtered_findings) < original_count:
+                for match in re.findall(r"`(src/[^\s`]+\.\w+)`", body):
+                    past_file_paths.add(match)
+        except Exception:
+            logger.debug("Could not fetch GitHub PRs for dedup, using memory only")
+
+        original_count = len(analysis.top_findings[:max_prs])
+        filtered_findings = []
+        for finding in analysis.top_findings[:max_prs]:
+            title_lower = finding.title.lower()
+            # Check title similarity
+            is_title_dup = any(_titles_similar(title_lower, pt) for pt in past_titles_lower)
+            # Check if same file was already targeted
+            is_file_dup = finding.file_path in past_file_paths if finding.file_path else False
+
+            if is_title_dup:
                 logger.info(
-                    "🔁 Filtered %d duplicate findings (%d remaining)",
-                    original_count - len(filtered_findings),
-                    len(filtered_findings),
+                    "⏭️ Skipping duplicate finding: %s (similar PR exists)",
+                    finding.title,
                 )
-        else:
-            filtered_findings = list(analysis.top_findings[:max_prs])
+                continue
+            if is_file_dup:
+                logger.info(
+                    "⏭️ Skipping finding on already-targeted file: %s → %s",
+                    finding.title,
+                    finding.file_path,
+                )
+                continue
+            filtered_findings.append(finding)
+
+        if len(filtered_findings) < original_count:
+            logger.info(
+                "🔁 Filtered %d duplicate findings (%d remaining)",
+                original_count - len(filtered_findings),
+                len(filtered_findings),
+            )
 
         if not filtered_findings:
             logger.info("No new findings after duplicate filter")

@@ -169,6 +169,18 @@ class ContributionGenerator:
                 f"```\n{current_content[:6000]}\n```\n"
             )
 
+        # Cross-file: find other files with the same pattern
+        other_affected_files = self._find_cross_file_instances(finding, context)
+        if other_affected_files:
+            prompt += (
+                f"\n## ⚠️ IMPORTANT: Same issue in "
+                f"{len(other_affected_files)} OTHER file(s)\n"
+                "Fix ALL instances across ALL files in a single contribution.\n"
+                "This produces a higher-quality PR that addresses the issue comprehensively.\n\n"
+            )
+            for fpath, fcontent in other_affected_files.items():
+                prompt += f"### {fpath}\n```\n{fcontent[:3000]}\n```\n\n"
+
         prompt += "\n## Output Format\nReturn your changes as a JSON object.\n\n"
 
         if current_content:
@@ -219,6 +231,61 @@ class ContributionGenerator:
             )
 
         return prompt
+
+    def _find_cross_file_instances(self, finding: Finding, context: RepoContext) -> dict[str, str]:
+        """Find other files in the repo with the same issue pattern.
+
+        Searches relevant_files for code patterns similar to the primary
+        finding's issue (e.g., same non-null assertion, same unsafe pattern).
+        Returns {path: content} for files that likely have the same issue.
+        """
+        if not finding.file_path or not context.relevant_files:
+            return {}
+
+        # Extract key terms from the finding to search for
+        keywords = self._extract_search_patterns(finding)
+        if not keywords:
+            return {}
+
+        other_files: dict[str, str] = {}
+        for fpath, content in context.relevant_files.items():
+            if fpath == finding.file_path:
+                continue
+            # Check if any keyword pattern appears in this file
+            content_lower = content.lower()
+            matches = sum(1 for kw in keywords if kw.lower() in content_lower)
+            if matches >= 2:  # At least 2 pattern matches = likely same issue
+                other_files[fpath] = content
+                if len(other_files) >= 3:  # Cap at 3 extra files to limit prompt size
+                    break
+
+        if other_files:
+            logger.info(
+                "🔗 Found same pattern in %d other file(s): %s",
+                len(other_files),
+                ", ".join(other_files.keys()),
+            )
+        return other_files
+
+    @staticmethod
+    def _extract_search_patterns(finding: Finding) -> list[str]:
+        """Extract code patterns from finding description to search across files.
+
+        Looks for code-like tokens in the finding's description and suggestion.
+        """
+        patterns = []
+        text = f"{finding.description} {finding.suggestion or ''}"
+        # Extract backtick-quoted code snippets
+        import re
+
+        for match in re.findall(r"`([^`]+)`", text):
+            if len(match) > 3:  # Skip very short matches
+                patterns.append(match)
+        # Extract common code patterns mentioned
+        for pattern in re.findall(r"(\w+\.\w+[!?]?(?:\(\))?)", text):
+            if len(pattern) > 5:
+                patterns.append(pattern)
+        return patterns[:10]  # Cap at 10 patterns
 
     def _parse_changes(self, response: str, context: RepoContext) -> list[FileChange]:
         """Parse LLM response into FileChange objects.
