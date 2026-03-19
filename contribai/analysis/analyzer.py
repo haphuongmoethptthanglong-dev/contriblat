@@ -241,8 +241,18 @@ class CodeAnalyzer:
             "- line_start: approximate line number (or 0 if unknown)\n"
             "- description: detailed explanation of the issue\n"
             "- suggestion: how to fix it\n\n"
-            "Return findings as a YAML list. If no issues found, return 'findings: []'.\n"
-            "Be specific and actionable. Avoid false positives."
+            "Return findings as a YAML list. If no issues found, return 'findings: []'.\n\n"
+            "CRITICAL: Avoid false positives. Before reporting a finding:\n"
+            "1. Check if the code is ALREADY protected by error handling, "
+            "circuit breakers, try/catch, or fallback patterns\n"
+            "2. Check if collections/maps are BOUNDED by construction "
+            "(populated from static arrays, enums, configs, or hardcoded lists)\n"
+            "3. Consider the FULL call chain — a pattern that looks unsafe in isolation "
+            "may be safe when called from a protected context\n"
+            "4. Do NOT report issues where the existing code already handles the edge case\n"
+            "5. Do NOT report issues where the fix would add unnecessary complexity "
+            "without real benefit\n\n"
+            "Only report issues you are CONFIDENT are genuine problems."
         )
 
         try:

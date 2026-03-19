@@ -321,8 +321,19 @@ class ContribPipeline:
             relevant_files=relevant_files,
         )
 
-        # Generate contributions for top findings
-        for finding in analysis.top_findings[:max_prs]:
+        # Validate findings against full file content to filter false positives
+        validated_findings = await self._validate_findings(
+            analysis.top_findings[:max_prs], relevant_files
+        )
+        logger.info(
+            "🔎 Validated %d/%d findings (filtered %d false positives)",
+            len(validated_findings),
+            min(len(analysis.top_findings), max_prs),
+            min(len(analysis.top_findings), max_prs) - len(validated_findings),
+        )
+
+        # Generate contributions for validated findings
+        for finding in validated_findings:
             logger.info("🛠️ Generating fix for: %s", finding.title)
             self._set_task("code_gen")
             contribution = await self._generator.generate(finding, context, guidelines=guidelines)
@@ -379,6 +390,98 @@ class ContribPipeline:
 
         result.repos_analyzed = 1
         return result
+
+    async def _validate_findings(
+        self,
+        findings: list,
+        relevant_files: dict[str, str],
+    ) -> list:
+        """Validate findings against full file content to filter false positives.
+
+        For each finding, asks the LLM to re-examine whether the issue is
+        genuinely valid given the complete file context. This catches issues
+        like:
+        - Code protected by circuit breakers / error boundaries
+        - Maps bounded by static data sources
+        - Functions called only from safe contexts
+        """
+        if not findings:
+            return []
+
+        self._set_task("validation")
+        validated = []
+
+        for finding in findings:
+            file_content = relevant_files.get(finding.file_path, "")
+            if not file_content:
+                # Can't validate without file content — keep the finding
+                validated.append(finding)
+                continue
+
+            prompt = (
+                f"## Finding Validation\n\n"
+                f"A code analyzer found this issue. Your job is to determine "
+                f"if it is a GENUINE problem or a FALSE POSITIVE.\n\n"
+                f"### Finding\n"
+                f"- **Title**: {finding.title}\n"
+                f"- **Severity**: {finding.severity.value}\n"
+                f"- **File**: {finding.file_path}\n"
+                f"- **Description**: {finding.description}\n"
+                f"- **Suggestion**: {finding.suggestion}\n\n"
+                f"### Full File Content\n"
+                f"```\n{file_content[:12000]}\n```\n\n"
+                f"### Validation Checklist\n"
+                f"Check ALL of these before deciding:\n"
+                f"1. Is the affected code already protected by try/catch, "
+                f"circuit breakers, error boundaries, or fallback patterns?\n"
+                f"2. If the finding is about unbounded growth — is the data source "
+                f"actually bounded (static array, enum, hardcoded list, config)?\n"
+                f"3. Is the function only called from contexts where the issue "
+                f"cannot occur?\n"
+                f"4. Would the suggested fix add unnecessary complexity without "
+                f"real benefit?\n"
+                f"5. Does the existing code already handle this edge case through "
+                f"a different mechanism?\n\n"
+                f"### Response\n"
+                f"Respond with EXACTLY one line:\n"
+                f"VALID: [brief reason why this is a real issue]\n"
+                f"or\n"
+                f"INVALID: [brief reason why this is a false positive]\n"
+            )
+
+            try:
+                response = await self._llm.complete(
+                    prompt,
+                    system=(
+                        "You are a senior code reviewer validating automated findings. "
+                        "Be skeptical — reject findings that are false positives. "
+                        "A finding is INVALID if the code is already protected or "
+                        "the issue doesn't exist in practice."
+                    ),
+                    temperature=0.1,
+                )
+
+                response_text = response.strip().upper()
+                if response_text.startswith("INVALID"):
+                    logger.info(
+                        "❌ Finding rejected: %s — %s",
+                        finding.title,
+                        response.strip(),
+                    )
+                    continue
+
+                logger.info(
+                    "✅ Finding validated: %s — %s",
+                    finding.title,
+                    response.strip()[:80],
+                )
+                validated.append(finding)
+
+            except Exception as e:
+                logger.warning("Validation failed for %s: %s, keeping", finding.title, e)
+                validated.append(finding)
+
+        return validated
 
     async def _check_ci_and_close_if_failed(
         self,
