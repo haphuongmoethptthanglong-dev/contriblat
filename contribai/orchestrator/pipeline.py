@@ -29,6 +29,24 @@ from contribai.pr.manager import PRManager
 
 logger = logging.getLogger(__name__)
 
+# Files that should NOT be modified/created by ContribAI
+# These are meta/governance files that projects manage themselves
+PROTECTED_META_FILES = {
+    "CONTRIBUTING.md",
+    ".github/CONTRIBUTING.md",
+    "docs/CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+    ".github/CODE_OF_CONDUCT.md",
+    "LICENSE",
+    "LICENSE.md",
+    "LICENSE.txt",
+    ".github/FUNDING.yml",
+    ".github/SECURITY.md",
+    "SECURITY.md",
+    ".github/CODEOWNERS",
+    ".all-contributorsrc",
+}
+
 
 def _titles_similar(title_a: str, title_b: str) -> bool:
     """Check if two finding/PR titles are similar enough to be duplicates.
@@ -322,7 +340,8 @@ class ContribPipeline:
                         await asyncio.sleep(delay_sec)
                     continue
 
-                for repo in targets[:3]:
+                max_targets = self.config.github.max_repos_per_run
+                for repo in targets[:max_targets]:
                     if remaining <= 0 and not dry_run:
                         break
                     try:
@@ -714,6 +733,15 @@ class ContribPipeline:
             # Deep solve → multi-file findings
             self._set_task("analysis")
             findings = await solver.solve_issue_deep(issue, repo, context)
+
+            # Filter out findings that only touch protected meta files
+            findings = [
+                f
+                for f in findings
+                if not f.file_path
+                or f.file_path.lower() not in {p.lower() for p in PROTECTED_META_FILES}
+            ]
+
             result.findings_total += len(findings)
 
             if not findings:
