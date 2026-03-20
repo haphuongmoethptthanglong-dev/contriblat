@@ -47,6 +47,20 @@ PROTECTED_META_FILES = {
     ".all-contributorsrc",
 }
 
+# File extensions to skip — doc/config-only changes are low-value
+# Only code files should be modified
+SKIP_EXTENSIONS = {
+    ".md",
+    ".txt",
+    ".rst",
+    ".yml",
+    ".yaml",
+    ".toml",
+    ".cfg",
+    ".ini",
+    ".json",
+}
+
 
 def _titles_similar(title_a: str, title_b: str) -> bool:
     """Check if two finding/PR titles are similar enough to be duplicates.
@@ -734,13 +748,19 @@ class ContribPipeline:
             self._set_task("analysis")
             findings = await solver.solve_issue_deep(issue, repo, context)
 
-            # Filter out findings that only touch protected meta files
-            findings = [
-                f
-                for f in findings
-                if not f.file_path
-                or f.file_path.lower() not in {p.lower() for p in PROTECTED_META_FILES}
-            ]
+            # Filter out findings that only touch non-code files
+            # (docs, configs, meta files — low-value changes)
+            def _is_code_file(path: str | None) -> bool:
+                if not path:
+                    return True  # no path → keep it
+                import os
+
+                _, ext = os.path.splitext(path.lower())
+                if ext in SKIP_EXTENSIONS:
+                    return False
+                return path.lower() not in {p.lower() for p in PROTECTED_META_FILES}
+
+            findings = [f for f in findings if _is_code_file(f.file_path)]
 
             result.findings_total += len(findings)
 
