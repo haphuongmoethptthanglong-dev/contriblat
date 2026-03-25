@@ -1,52 +1,153 @@
-# Copilot Instructions for ContribAI
+# AI Agent Guide for ContribAI
 
-## Project Context
-ContribAI is an autonomous AI agent that contributes to GitHub open source projects.
-It discovers repos, analyzes code, generates fixes, and submits PRs automatically.
+> This document is designed for AI assistants (GitHub Copilot, Claude, Cursor, Coderabbit, etc.)
+> scanning this repository. It provides structured context to help AI understand the codebase.
 
-## Architecture (v2.4.0)
-- **Pipeline**: Discovery → Middleware → Analysis → Generation → PR → CI Monitor
-- **Middleware chain**: `contribai/core/middleware.py` (RateLimit, Validation, Retry, DCO, QualityGate)
-- **Skills**: `contribai/analysis/skills.py` (17 skills, progressive loading by language/framework)
-- **Sub-agents**: `contribai/agents/registry.py` (Analyzer, Generator, Patrol, Compliance)
-- **Tools**: `contribai/tools/protocol.py` (MCP-inspired protocol with GitHubTool, LLMTool)
-- **Memory**: `contribai/orchestrator/memory.py` (SQLite, 6 tables including outcome learning)
+## What This Project Is
 
-## Code Style
-- Python 3.11+, fully async (asyncio)
-- `from __future__ import annotations` in every file
-- Google-style docstrings
-- ruff for linting and formatting (100 char line limit)
-- Full type hints with `str | None` syntax
-- `snake_case` functions, `PascalCase` classes
+ContribAI is an **autonomous AI agent** that contributes to open source projects on GitHub.
+It discovers repos, analyzes code, generates fixes, and submits pull requests — all without human intervention.
 
-## Key Patterns
-- All LLM calls: `await self._llm.complete(prompt, system_prompt=...)`
-- All GitHub API: `await self._github.method(owner, repo, ...)`
-- Config: `ContribAIConfig.from_yaml("config.yaml")`
-- Memory: `await memory.method(...)` (aiosqlite)
-- Errors: `try/except` with `logger.error()`, never bare except
+**It is NOT** a library/SDK, web app, or CLI tool intended for end-user consumption.
+It is itself an AI agent that operates on other GitHub repositories.
 
-## Important Rules
-- NEVER modify: LICENSE, CONTRIBUTING.md, CODE_OF_CONDUCT.md
-- ONLY modify code files (.py, .js, .ts, .go, .rs, etc.)
-- All commits must include DCO signoff (`Signed-off-by: name <email>`)
-- Tests: `pytest tests/ -v` (247 tests must pass)
-- Lint: `ruff check contribai/` (must be clean)
+## Tech Stack
 
-## File Map
+| Layer | Technology |
+|-------|-----------|
+| Language | Python 3.11+ |
+| Async | asyncio, aiohttp |
+| HTTP | httpx (async) |
+| Database | SQLite (aiosqlite) |
+| LLM | Google Gemini (primary), OpenAI, Anthropic, Ollama, Vertex AI |
+| GitHub | REST API v3 (via httpx) |
+| Web | FastAPI + uvicorn |
+| CLI | Typer + Rich |
+| Tests | pytest (333 tests) |
+| Lint | ruff |
+
+## Architecture (v2.4.1)
+
+### Core Pipeline
 ```
-contribai/
-├── core/          → config.py, models.py, middleware.py
-├── analysis/      → analyzer.py, skills.py
-├── agents/        → registry.py
-├── tools/         → protocol.py
-├── llm/           → provider.py, context.py
-├── github/        → client.py, discovery.py
-├── generator/     → engine.py, scorer.py
-├── pr/            → manager.py, patrol.py
-├── orchestrator/  → pipeline.py, memory.py
-├── issues/        → solver.py
-├── web/           → app.py, api.py
-└── cli/           → main.py
+Discovery → Middleware Chain → Analysis → Generation → PR → CI Monitor
 ```
+
+### Key Patterns
+1. **Middleware Chain** — 5 ordered middlewares (`contribai/core/middleware.py`)
+2. **Progressive Skills** — 17 analysis skills loaded on-demand (`contribai/analysis/skills.py`)
+3. **Sub-Agent Registry** — 4 agents with parallel execution (`contribai/agents/registry.py`)
+4. **Tool Protocol** — MCP-inspired tool interface (`contribai/tools/protocol.py`)
+5. **Outcome Learning** — Tracks PR outcomes to learn per-repo preferences (`contribai/orchestrator/memory.py`)
+6. **Context Summarization** — Compresses analysis results for LLM context (`contribai/analysis/analyzer.py`)
+
+### Module Dependency Graph
+```
+cli/main.py
+  └── orchestrator/pipeline.py (entry point)
+        ├── core/config.py (configuration)
+        ├── core/middleware.py (pipeline middlewares)
+        ├── github/client.py (HTTP API)
+        ├── github/discovery.py (repo search)
+        ├── analysis/analyzer.py (7 analyzers)
+        │     └── analysis/skills.py (progressive loading)
+        ├── generator/engine.py (code generation)
+        │     └── generator/scorer.py (quality scoring)
+        ├── pr/manager.py (PR lifecycle)
+        ├── pr/patrol.py (review monitoring)
+        ├── issues/solver.py (issue solving)
+        ├── orchestrator/memory.py (SQLite persistence)
+        ├── agents/registry.py (sub-agent orchestration)
+        └── tools/protocol.py (tool interface)
+```
+
+## Code Conventions
+
+| Convention | Standard |
+|-----------|---------|
+| Naming | `snake_case` for functions/variables, `PascalCase` for classes |
+| Docstrings | Google style with Args/Returns/Raises |
+| Async | All I/O operations are `async/await` |
+| Error handling | `try/except` with logging, no bare `except` |
+| Imports | Absolute imports, `from __future__ import annotations` |
+| Type hints | Full type hints, `str | None` style unions |
+| Line length | 100 chars (ruff) |
+| Formatting | ruff format |
+
+## Common Patterns
+
+### LLM Calls
+```python
+# All LLM calls go through LLMProvider.complete()
+response = await self._llm.complete(prompt, system_prompt=system)
+```
+
+### GitHub API Calls
+```python
+# All GitHub API calls go through GitHubClient
+content = await self._github.get_file_content(owner, repo, path)
+await self._github.create_or_update_file(owner, repo, path, content, message, signoff=signoff)
+```
+
+### Configuration
+```python
+# All config through Pydantic-like dataclasses in core/config.py
+config = ContribAIConfig.from_yaml("config.yaml")
+config.github.token  # str
+config.llm.provider  # str
+config.analysis.enabled_analyzers  # list[str]
+```
+
+### Memory/Persistence
+```python
+# SQLite via aiosqlite
+memory = Memory("~/.contribai/memory.db")
+await memory.init()
+await memory.record_outcome(repo, pr_number, url, type, "merged")
+prefs = await memory.get_repo_preferences(repo)
+```
+
+## File Organization Rules
+
+- **Code files only**: ContribAI only modifies `.py`, `.js`, `.ts`, `.go`, `.rs` etc.
+- **Never modify**: `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `.github/FUNDING.yml`
+- **Skip extensions**: `.md`, `.yaml`, `.json`, `.toml`, `.cfg`, `.ini`
+- **Protected meta files**: Any governance/meta files are off-limits
+
+## Testing
+
+```bash
+pytest tests/ -v                  # 333 tests
+pytest tests/ -v --cov=contribai  # With coverage (threshold: 50%)
+```
+
+Test structure:
+```
+tests/
+├── unit/              # Unit tests for each module
+│   ├── test_analyzer.py
+│   ├── test_config.py
+│   ├── test_pipeline_v2.py
+│   ├── test_github_client.py
+│   ├── test_patrol.py
+│   └── ...
+└── conftest.py        # Shared fixtures
+```
+
+## Environment Variables
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `GITHUB_TOKEN` | Yes | GitHub API authentication |
+| `GEMINI_API_KEY` | Yes* | Google Gemini LLM |
+| `OPENAI_API_KEY` | Alt | OpenAI LLM (alternative) |
+| `ANTHROPIC_API_KEY` | Alt | Anthropic LLM (alternative) |
+| `GOOGLE_CLOUD_PROJECT` | Opt | Vertex AI project |
+
+## Known Limitations
+
+1. No sandbox execution — ContribAI generates code but doesn't run it
+2. Single-repo PRs only — no cross-repo changes
+3. No interactive mode — fully autonomous
+4. Rate limited by GitHub API (5000 req/hour for authenticated users)
+5. Context window limited by LLM provider (varies by model)

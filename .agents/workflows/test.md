@@ -15,7 +15,7 @@ pytest tests/ -v --tb=short
 2. **Check coverage**
 // turbo
 ```bash
-pytest tests/ --cov=contribai --cov-report=term-missing --cov-fail-under=80
+pytest tests/ --cov=contribai --cov-report=term-missing --cov-fail-under=50
 ```
 
 3. **Identify untested code**

@@ -74,10 +74,12 @@ python -m twine upload dist/*
 
 11. **Create GitHub Release**
 ```bash
-# Create release notes file from CHANGELOG.md for this version
-# then create the release via CLI:
-gh release create vX.Y.Z --title "vX.Y.Z - Release Title" --notes-file release_notes.md --latest
+# Write release notes to a temp file first (inline --notes hangs in PowerShell)
+# Extract this version's section from CHANGELOG.md into a file, then:
+gh release create vX.Y.Z --title "vX.Y.Z - Release Title" --notes-file /tmp/release_notes.md --latest
 ```
+> **Tip**: Never use inline `--notes "..."` with backticks on Windows/PowerShell — it hangs. Always use `--notes-file`.
+
 Mark this as the `--latest` release. Ensure title and notes match CHANGELOG.md content.
 
 ## Version Numbering (SemVer)

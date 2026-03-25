@@ -27,7 +27,7 @@ description: ContribAI development workflow - code, patrol, hunt, and release
    git push origin main
    ```
 
-## Architecture (v2.4.0)
+## Architecture (v2.4.1)
 
 Key modules to know:
 
@@ -85,10 +85,16 @@ generating accurate code fixes.
 
 ```bash
 # Hunt for repos and generate PRs
-contribai hunt --rounds 1 --repos 20
+contribai hunt --rounds 1
+
+# Hunt with multiple languages
+contribai hunt --rounds 3 -l python -l javascript
 
 # Dry run
-contribai hunt --rounds 1 --repos 5 --dry-run
+contribai hunt --rounds 1 --dry-run
+
+# Single repo test
+contribai run owner/repo --dry-run
 ```
 
 ## Release

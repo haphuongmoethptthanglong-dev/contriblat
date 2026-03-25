@@ -23,10 +23,10 @@ It is itself an AI agent that operates on other GitHub repositories.
 | GitHub | REST API v3 (via httpx) |
 | Web | FastAPI + uvicorn |
 | CLI | Typer + Rich |
-| Tests | pytest (247 tests) |
+| Tests | pytest (333 tests) |
 | Lint | ruff |
 
-## Architecture (v2.4.0)
+## Architecture (v2.4.1)
 
 ### Core Pipeline
 ```
@@ -101,7 +101,7 @@ config.analysis.enabled_analyzers  # list[str]
 ### Memory/Persistence
 ```python
 # SQLite via aiosqlite
-memory = Memory("~/.contribai/contribai.db")
+memory = Memory("~/.contribai/memory.db")
 await memory.init()
 await memory.record_outcome(repo, pr_number, url, type, "merged")
 prefs = await memory.get_repo_preferences(repo)
@@ -117,8 +117,8 @@ prefs = await memory.get_repo_preferences(repo)
 ## Testing
 
 ```bash
-pytest tests/ -v                  # 247 tests
-pytest tests/ -v --cov=contribai  # With coverage
+pytest tests/ -v                  # 333 tests
+pytest tests/ -v --cov=contribai  # With coverage (threshold: 50%)
 ```
 
 Test structure:
