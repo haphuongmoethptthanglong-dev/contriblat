@@ -1,6 +1,5 @@
 """Tests for configuration system."""
 
-
 import pytest
 import yaml
 

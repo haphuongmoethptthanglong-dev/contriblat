@@ -1,6 +1,5 @@
 """Tests for retry utilities and LRU cache."""
 
-
 import pytest
 
 from contribai.core.retry import LRUCache, async_retry

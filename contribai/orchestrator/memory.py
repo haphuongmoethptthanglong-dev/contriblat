@@ -60,6 +60,29 @@ CREATE TABLE IF NOT EXISTS run_log (
     errors       INTEGER DEFAULT 0,
     metadata     TEXT DEFAULT '{}'
 );
+
+CREATE TABLE IF NOT EXISTS pr_outcomes (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    repo        TEXT NOT NULL,
+    pr_number   INTEGER NOT NULL,
+    pr_url      TEXT NOT NULL,
+    pr_type     TEXT NOT NULL,
+    outcome     TEXT NOT NULL,
+    feedback    TEXT DEFAULT '',
+    time_to_close_hours REAL DEFAULT 0,
+    recorded_at TEXT,
+    UNIQUE(repo, pr_number)
+);
+
+CREATE TABLE IF NOT EXISTS repo_preferences (
+    repo        TEXT PRIMARY KEY,
+    preferred_types TEXT DEFAULT '[]',
+    rejected_types  TEXT DEFAULT '[]',
+    merge_rate  REAL DEFAULT 0.0,
+    avg_review_hours REAL DEFAULT 0.0,
+    notes       TEXT DEFAULT '',
+    updated_at  TEXT
+);
 """
 
 
@@ -233,3 +256,120 @@ class Memory:
         rows = await cursor.fetchall()
         cols = [d[0] for d in cursor.description]
         return [dict(zip(cols, row, strict=False)) for row in rows]
+
+    # ── Outcome Learning ──────────────────────────────────────────────────
+
+    async def record_outcome(
+        self,
+        repo: str,
+        pr_number: int,
+        pr_url: str,
+        pr_type: str,
+        outcome: str,
+        feedback: str = "",
+        time_to_close_hours: float = 0.0,
+    ):
+        """Record the outcome of a PR (merged, closed, rejected)."""
+        await self._db.execute(
+            """INSERT OR REPLACE INTO pr_outcomes
+               (repo, pr_number, pr_url, pr_type, outcome, feedback,
+                time_to_close_hours, recorded_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                repo,
+                pr_number,
+                pr_url,
+                pr_type,
+                outcome,
+                feedback,
+                time_to_close_hours,
+                datetime.utcnow().isoformat(),
+            ),
+        )
+        await self._db.commit()
+
+        # Auto-update repo preferences
+        await self._update_repo_preferences(repo)
+
+    async def _update_repo_preferences(self, repo: str):
+        """Recompute repo preferences from outcome history."""
+        import json
+
+        cursor = await self._db.execute(
+            "SELECT pr_type, outcome, time_to_close_hours FROM pr_outcomes WHERE repo = ?",
+            (repo,),
+        )
+        rows = await cursor.fetchall()
+        if not rows:
+            return
+
+        merged_types: list[str] = []
+        rejected_types: list[str] = []
+        total_hours = 0.0
+        merged_count = 0
+
+        for pr_type, outcome, hours in rows:
+            if outcome == "merged":
+                merged_types.append(pr_type)
+                merged_count += 1
+                total_hours += hours or 0
+            elif outcome in ("closed", "rejected"):
+                rejected_types.append(pr_type)
+
+        merge_rate = merged_count / len(rows) if rows else 0.0
+        avg_hours = total_hours / merged_count if merged_count else 0.0
+
+        await self._db.execute(
+            """INSERT OR REPLACE INTO repo_preferences
+               (repo, preferred_types, rejected_types, merge_rate,
+                avg_review_hours, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                repo,
+                json.dumps(list(set(merged_types))),
+                json.dumps(list(set(rejected_types))),
+                round(merge_rate, 3),
+                round(avg_hours, 1),
+                datetime.utcnow().isoformat(),
+            ),
+        )
+        await self._db.commit()
+
+    async def get_repo_preferences(self, repo: str) -> dict | None:
+        """Get learned preferences for a specific repo."""
+        import json
+
+        cursor = await self._db.execute("SELECT * FROM repo_preferences WHERE repo = ?", (repo,))
+        row = await cursor.fetchone()
+        if not row:
+            return None
+        cols = [d[0] for d in cursor.description]
+        prefs = dict(zip(cols, row, strict=False))
+        prefs["preferred_types"] = json.loads(prefs.get("preferred_types", "[]"))
+        prefs["rejected_types"] = json.loads(prefs.get("rejected_types", "[]"))
+        return prefs
+
+    async def get_rejection_patterns(self, limit: int = 20) -> list[dict]:
+        """Get common rejection reasons across all repos."""
+        cursor = await self._db.execute(
+            """SELECT repo, pr_type, feedback
+               FROM pr_outcomes
+               WHERE outcome IN ('closed', 'rejected') AND feedback != ''
+               ORDER BY recorded_at DESC LIMIT ?""",
+            (limit,),
+        )
+        rows = await cursor.fetchall()
+        return [{"repo": r[0], "pr_type": r[1], "feedback": r[2]} for r in rows]
+
+    async def get_outcome_stats(self) -> dict:
+        """Get outcome statistics."""
+        stats = {}
+        cursor = await self._db.execute(
+            "SELECT outcome, COUNT(*) FROM pr_outcomes GROUP BY outcome"
+        )
+        for outcome, count in await cursor.fetchall():
+            stats[outcome] = count
+        cursor = await self._db.execute("SELECT AVG(merge_rate) FROM repo_preferences")
+        row = await cursor.fetchone()
+        stats["avg_merge_rate"] = round(row[0], 3) if row and row[0] else 0.0
+        return stats

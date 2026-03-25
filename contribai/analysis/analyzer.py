@@ -120,6 +120,15 @@ class CodeAnalyzer:
         # Filter by severity threshold
         findings = self._filter_severity(findings)
 
+        # Build context summary for downstream consumers
+        context_summary = self.summarize_findings(findings)
+        logger.info(
+            "Analysis of %s complete — %d findings. Summary: %s",
+            repo.full_name,
+            len(findings),
+            context_summary[:100],
+        )
+
         duration = time.monotonic() - start
         return AnalysisResult(
             repo=repo,
@@ -128,6 +137,43 @@ class CodeAnalyzer:
             skipped_files=len(file_tree) - len(analyzable),
             analysis_duration_sec=round(duration, 2),
         )
+
+    @staticmethod
+    def summarize_findings(findings: list[Finding]) -> str:
+        """Compress findings into a concise summary.
+
+        Inspired by DeerFlow's context engineering: summarize completed
+        sub-tasks to preserve context window for subsequent processing.
+
+        Returns a compact string suitable for injection into LLM prompts.
+        """
+        if not findings:
+            return "No issues found."
+
+        # Group by type
+        by_type: dict[str, list[str]] = {}
+        for f in findings:
+            key = (
+                f.contribution_type.value
+                if hasattr(f.contribution_type, "value")
+                else str(f.contribution_type)
+            )
+            by_type.setdefault(key, []).append(f.title)
+
+        parts = []
+        for ftype, titles in by_type.items():
+            if len(titles) <= 2:
+                parts.append(f"- {ftype}: {'; '.join(titles)}")
+            else:
+                parts.append(f"- {ftype}: {titles[0]}; {titles[1]}; +{len(titles) - 2} more")
+
+        severity_counts = {}
+        for f in findings:
+            sev = f.severity.value if hasattr(f.severity, "value") else str(f.severity)
+            severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
+        sev_str = ", ".join(f"{s}: {c}" for s, c in sorted(severity_counts.items()))
+        return f"{len(findings)} findings ({sev_str}):\n" + "\n".join(parts)
 
     def _select_files(self, tree: list[FileNode]) -> list[FileNode]:
         """Select files suitable for analysis."""

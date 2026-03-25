@@ -1,6 +1,5 @@
 """Tests for v2.0.0 pipeline issue-driven mode."""
 
-
 import pytest
 
 from contribai.core.models import FileNode, Repository

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-03-25
+
+### Added
+- **Middleware chain** (`contribai/core/middleware.py`): Pipeline processing with 5 built-in middlewares — RateLimit, Validation, Retry, DCO, QualityGate
+- **Progressive skill loading** (`contribai/analysis/skills.py`): 17 analysis skills loaded on-demand by language/framework instead of all at once — saves tokens and improves quality
+- **Framework detection**: Auto-detect Django, Flask, FastAPI, React, Express, Spring, Rails, etc. from file tree
+- **Outcome learning** (`memory.py`): New `pr_outcomes` + `repo_preferences` tables — tracks PR merge/rejection to learn which contribution types work per repo
+- **Context summarization** (`analyzer.py`): `summarize_findings()` compresses analysis results for downstream LLM prompts
+- **Sub-agent registry** (`contribai/agents/registry.py`): 4 agent stubs (Analyzer, Generator, Patrol, Compliance) with parallel execution (max 3 concurrent)
+- **Tool protocol** (`contribai/tools/protocol.py`): MCP-inspired tool system with ToolRegistry, GitHubTool, and LLMTool wrappers
+- **DCO auto-signoff**: All commits via GitHub API auto-append `Signed-off-by` trailer
+
+### Changed
+- Architecture inspired by ByteDance DeerFlow 2.0 super agent harness
+- README updated with PR Patrol section, v2.4.0 badges
+
 ## [2.3.0] - 2026-03-24
 
 ### Added

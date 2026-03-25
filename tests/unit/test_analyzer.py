@@ -1,6 +1,5 @@
 """Tests for the code analysis engine."""
 
-
 import pytest
 
 from contribai.analysis.analyzer import ANALYZABLE_EXTENSIONS, CodeAnalyzer
