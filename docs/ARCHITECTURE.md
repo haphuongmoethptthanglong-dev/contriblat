@@ -1,6 +1,6 @@
 # Architecture
 
-ContribAI v2.5.0 — DeerFlow-inspired agent architecture.
+ContribAI v2.6.0 — DeerFlow-inspired agent architecture with MCP server.
 
 ## System Overview
 
@@ -50,6 +50,7 @@ ContribAI v2.5.0 — DeerFlow-inspired agent architecture.
 | `pr/` | PR management + patrol | `manager.py`, `patrol.py` |
 | `orchestrator/` | Pipeline + hunt + memory | `pipeline.py`, `memory.py` |
 | `issues/` | Issue solving | `solver.py` |
+| `mcp/` | MCP stdio server (14 tools) | `mcp_server.py` |
 | `web/` | FastAPI dashboard | `app.py`, `api.py` |
 | `cli/` | CLI interface | `main.py` |
 

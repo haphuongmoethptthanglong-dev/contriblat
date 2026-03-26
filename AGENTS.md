@@ -23,10 +23,10 @@ It is itself an AI agent that operates on other GitHub repositories.
 | GitHub | REST API v3 (via httpx) |
 | Web | FastAPI + uvicorn |
 | CLI | Typer + Rich |
-| Tests | pytest (333 tests) |
+| Tests | pytest (370+ tests) |
 | Lint | ruff |
 
-## Architecture (v2.5.0)
+## Architecture (v2.6.0)
 
 ### Core Pipeline
 ```
@@ -36,10 +36,11 @@ Discovery → Middleware Chain → Analysis → Generation → PR → CI Monitor
 ### Key Patterns
 1. **Middleware Chain** — 5 ordered middlewares (`contribai/core/middleware.py`)
 2. **Progressive Skills** — 17 analysis skills loaded on-demand (`contribai/analysis/skills.py`)
-3. **Sub-Agent Registry** — 4 agents with parallel execution (`contribai/agents/registry.py`)
+3. **Sub-Agent Registry** — 5 agents with parallel execution (`contribai/agents/registry.py`)
 4. **Tool Protocol** — MCP-inspired tool interface (`contribai/tools/protocol.py`)
 5. **Outcome Learning** — Tracks PR outcomes to learn per-repo preferences (`contribai/orchestrator/memory.py`)
 6. **Context Summarization** — Compresses analysis results for LLM context (`contribai/analysis/analyzer.py`)
+7. **MCP Server** — 14 tools exposed via stdio for Claude Desktop (`contribai/mcp_server.py`)
 
 ### Module Dependency Graph
 ```
@@ -58,7 +59,8 @@ cli/main.py
         ├── issues/solver.py (issue solving)
         ├── orchestrator/memory.py (SQLite persistence)
         ├── agents/registry.py (sub-agent orchestration)
-        └── tools/protocol.py (tool interface)
+        ├── tools/protocol.py (tool interface)
+        └── mcp_server.py (MCP stdio server, 14 tools)
 ```
 
 ## Code Conventions
