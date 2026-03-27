@@ -5,6 +5,7 @@ Sends webhooks when PRs are merged/closed or pipeline runs complete.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 
@@ -59,11 +60,33 @@ class Notifier:
             return
 
         if self._slack:
-            await self._send_slack(event)
+            await self._send_with_retry(self._send_slack, event, "Slack")
         if self._discord:
-            await self._send_discord(event)
+            await self._send_with_retry(self._send_discord, event, "Discord")
         if self._telegram_token and self._telegram_chat:
-            await self._send_telegram(event)
+            await self._send_with_retry(self._send_telegram, event, "Telegram")
+
+    async def _send_with_retry(
+        self, send_fn, event: NotificationEvent, channel: str, max_retries: int = 2,
+    ):
+        """Retry notification sends with exponential backoff."""
+        for attempt in range(max_retries + 1):
+            try:
+                await send_fn(event)
+                return
+            except Exception:
+                if attempt == max_retries:
+                    logger.warning(
+                        "%s notification failed after %d attempts",
+                        channel, max_retries + 1, exc_info=True,
+                    )
+                else:
+                    delay = 2 ** attempt
+                    logger.debug(
+                        "%s attempt %d failed, retrying in %ds",
+                        channel, attempt + 1, delay,
+                    )
+                    await asyncio.sleep(delay)
 
     # ── Slack ─────────────────────────────────────────
 
@@ -99,17 +122,12 @@ class Notifier:
                 }
             )
 
-        try:
-            resp = await self._client.post(self._slack, json=payload)
-            if resp.status_code != 200:
-                logger.warning(
-                    "Slack webhook failed: %s",
-                    resp.text,
-                )
-        except Exception:
-            logger.warning(
-                "Slack notification failed",
-                exc_info=True,
+        resp = await self._client.post(self._slack, json=payload)
+        if resp.status_code != 200:
+            raise httpx.HTTPStatusError(
+                f"Slack webhook failed: {resp.text}",
+                request=resp.request,
+                response=resp,
             )
 
     # ── Discord ───────────────────────────────────────
@@ -131,17 +149,12 @@ class Notifier:
             ]
         }
 
-        try:
-            resp = await self._client.post(self._discord, json=payload)
-            if resp.status_code not in (200, 204):
-                logger.warning(
-                    "Discord webhook failed: %s",
-                    resp.text,
-                )
-        except Exception:
-            logger.warning(
-                "Discord notification failed",
-                exc_info=True,
+        resp = await self._client.post(self._discord, json=payload)
+        if resp.status_code not in (200, 204):
+            raise httpx.HTTPStatusError(
+                f"Discord webhook failed: {resp.text}",
+                request=resp.request,
+                response=resp,
             )
 
     # ── Telegram ──────────────────────────────────────
@@ -161,19 +174,10 @@ class Notifier:
             "disable_web_page_preview": True,
         }
 
-        try:
-            resp = await self._client.post(url, json=payload)
-            data = resp.json()
-            if not data.get("ok"):
-                logger.warning(
-                    "Telegram failed: %s",
-                    data.get("description"),
-                )
-        except Exception:
-            logger.warning(
-                "Telegram notification failed",
-                exc_info=True,
-            )
+        resp = await self._client.post(url, json=payload)
+        data = resp.json()
+        if not data.get("ok"):
+            raise RuntimeError(f"Telegram failed: {data.get('description')}")
 
     # ── Convenience methods ──────────────────────────
 

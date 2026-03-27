@@ -77,9 +77,10 @@ class StdioMCPClient(MCPClient):
         await client.disconnect()
     """
 
-    def __init__(self, *cmd: str, env: dict[str, str] | None = None):
+    def __init__(self, *cmd: str, env: dict[str, str] | None = None, timeout: float = 30.0):
         self._cmd = cmd
         self._env = env
+        self._timeout = timeout
         self._process: asyncio.subprocess.Process | None = None
         self._request_id = 0
 
@@ -152,7 +153,7 @@ class StdioMCPClient(MCPClient):
         await self._process.stdin.drain()
 
         # Read response line
-        line = await asyncio.wait_for(self._process.stdout.readline(), timeout=30)
+        line = await asyncio.wait_for(self._process.stdout.readline(), timeout=self._timeout)
         response = json.loads(line.decode())
 
         if "error" in response:

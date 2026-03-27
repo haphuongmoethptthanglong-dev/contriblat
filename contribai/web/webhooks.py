@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
 from contribai.web.auth import verify_webhook_signature
 
@@ -18,6 +19,9 @@ router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
 _webhook_secret: str = ""
 _on_event_callback = None
+
+# Max webhook payload: 10 MB (GitHub's own limit is 25 MB)
+MAX_PAYLOAD_SIZE = 10 * 1024 * 1024
 
 
 def configure_webhooks(secret: str, on_event=None):
@@ -30,6 +34,11 @@ def configure_webhooks(secret: str, on_event=None):
 @router.post("/github")
 async def github_webhook(request: Request):
     """Receive GitHub webhook events."""
+    # Reject oversized payloads
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_PAYLOAD_SIZE:
+        return JSONResponse({"error": "Payload too large"}, status_code=413)
+
     # Verify signature
     if _webhook_secret:
         signature = request.headers.get("X-Hub-Signature-256", "")

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.4] - 2026-03-28
+
+### Fixed
+- **Security**: API key verification now uses constant-time comparison (`hmac.compare_digest`) to prevent timing attacks
+- **Security**: Webhook endpoint now validates `Content-Length` header (10 MB limit) to reject oversized payloads
+
+### Improved
+- **Reliability**: Notification system retries failed sends with exponential backoff (3 attempts)
+- **Config**: MCP client timeout is now configurable via `StdioMCPClient(timeout=...)` instead of hardcoded 30s
+
+### Documentation
+- Initial project documentation suite: PDR, codebase summary, code standards, system architecture, roadmap, deployment guide
+
 ## [2.4.1] - 2026-03-26
 
 ### Fixed

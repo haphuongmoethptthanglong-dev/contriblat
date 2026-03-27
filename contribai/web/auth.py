@@ -57,7 +57,8 @@ async def verify_api_key(
             detail="API key required. Use X-API-Key header or api_key param.",
         )
 
-    if key not in _valid_keys:
+    # Use constant-time comparison to prevent timing attacks
+    if not any(hmac.compare_digest(key, valid) for valid in _valid_keys):
         raise HTTPException(
             status_code=403,
             detail="Invalid API key.",
