@@ -23,7 +23,7 @@ You are the **Code Reviewer** of ContribAI. Every PR passes through you. You ens
 
 ### 🧹 Code Quality
 - [ ] Functions are < 50 lines
-- [ ] Files are < 400 lines
+- [ ] Files are < 200 lines (consider splitting if exceeded)
 - [ ] No code duplication
 - [ ] Descriptive variable/function names
 - [ ] Type hints on all public APIs

@@ -42,7 +42,7 @@ Move items from `[Unreleased]` to the new version section:
 5. **Commit release changes**
 ```bash
 git add -A
-git commit -m "chore: release vX.Y.Z"
+git commit -m "release: vX.Y.Z — short description"
 ```
 
 6. **Create git tag**
@@ -55,32 +55,17 @@ git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin main --tags
 ```
 
-8. **Build the package**
-// turbo
+8. **Create GitHub Release** (triggers CI auto-build + PyPI publish)
 ```bash
-python -m build
+gh release create vX.Y.Z --title "vX.Y.Z - Release Title" --generate-notes --latest
 ```
+> GitHub Actions `release.yml` auto-builds wheel and publishes to PyPI on tag push.
 
-9. **Verify the build**
-// turbo
+9. **Update release notes** (if auto-generated notes are insufficient)
 ```bash
-python -m twine check dist/*
+gh release edit vX.Y.Z --notes-file /tmp/release_notes.md
 ```
-
-10. **Publish to PyPI** (manual approval required)
-```bash
-python -m twine upload dist/*
-```
-
-11. **Create GitHub Release**
-```bash
-# Write release notes to a temp file first (inline --notes hangs in PowerShell)
-# Extract this version's section from CHANGELOG.md into a file, then:
-gh release create vX.Y.Z --title "vX.Y.Z - Release Title" --notes-file /tmp/release_notes.md --latest
-```
-> **Tip**: Never use inline `--notes "..."` with backticks on Windows/PowerShell — it hangs. Always use `--notes-file`.
-
-Mark this as the `--latest` release. Ensure title and notes match CHANGELOG.md content.
+> **Tip**: On Windows/PowerShell, avoid inline `--notes "..."` with backticks — it hangs. Use `--notes-file` or heredoc in bash.
 
 ## Version Numbering (SemVer)
 - **MAJOR** (X): Breaking changes to CLI or config format

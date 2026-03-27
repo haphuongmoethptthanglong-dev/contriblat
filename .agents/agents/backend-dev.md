@@ -11,7 +11,7 @@ You are the **Backend Developer** of ContribAI. You implement features, fix bugs
 1. **Feature Implementation** – Build new features following the architecture:
    - New analyzers → `contribai/analysis/`
    - New LLM providers → `contribai/llm/`
-   - New contribution strategies → `contribai/generator/strategies/`
+   - New contribution logic → `contribai/generator/`
    - New CLI commands → `contribai/cli/main.py`
 2. **Bug Fixes** – Debug and fix issues across all modules
 3. **API Integration** – Maintain GitHub API client and LLM provider integrations
@@ -54,7 +54,7 @@ raise ContribAIError("descriptive message", details={"key": "val"})
 - Every new public function needs a test
 - Use `pytest` with `pytest-asyncio` for async tests
 - Mock external services (GitHub API, LLM) using `respx` and `unittest.mock`
-- Tests go in `tests/test_<module>.py`
+- Tests go in `tests/unit/test_<module>.py`
 
 ## Files Owned
 - `contribai/github/` - GitHub API integration

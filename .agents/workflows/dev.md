@@ -27,18 +27,22 @@ description: ContribAI development workflow - code, patrol, hunt, and release
    git push origin main
    ```
 
-## Architecture (v2.4.1)
+## Architecture (v3.0.4)
 
 Key modules to know:
 
 | Module | Purpose |
 |--------|---------|
 | `core/middleware.py` | Pipeline middleware chain (RateLimit, Validation, Retry, DCO, QualityGate) |
-| `analysis/skills.py` | 17 progressive analysis skills + framework detection |
+| `core/events.py` | EventBus with 15 typed events + JSONL logging |
+| `analysis/skills.py` | 20+ progressive analysis skills + framework detection |
 | `agents/registry.py` | Sub-agent registry (Analyzer, Generator, Patrol, Compliance) |
-| `tools/protocol.py` | MCP-inspired tool protocol (GitHubTool, LLMTool) |
-| `orchestrator/memory.py` | SQLite persistence + outcome learning (pr_outcomes, repo_preferences) |
-| `analysis/analyzer.py` | Code analysis + context summarization |
+| `tools/protocol.py` | Tool protocol (GitHubTool, LLMTool) |
+| `orchestrator/memory.py` | SQLite persistence + outcome learning (7 tables) |
+| `analysis/analyzer.py` | Code analysis + context compression |
+| `mcp_server.py` | MCP stdio server (14 tools for Claude Desktop) |
+| `mcp/mcp_client.py` | MCP client for external tool servers |
+| `sandbox/sandbox.py` | Docker-based code validation with local fallback |
 
 ## PR Patrol
 
