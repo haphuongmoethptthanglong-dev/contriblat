@@ -67,7 +67,11 @@ class Notifier:
             await self._send_with_retry(self._send_telegram, event, "Telegram")
 
     async def _send_with_retry(
-        self, send_fn, event: NotificationEvent, channel: str, max_retries: int = 2,
+        self,
+        send_fn,
+        event: NotificationEvent,
+        channel: str,
+        max_retries: int = 2,
     ):
         """Retry notification sends with exponential backoff."""
         for attempt in range(max_retries + 1):
@@ -78,13 +82,17 @@ class Notifier:
                 if attempt == max_retries:
                     logger.warning(
                         "%s notification failed after %d attempts",
-                        channel, max_retries + 1, exc_info=True,
+                        channel,
+                        max_retries + 1,
+                        exc_info=True,
                     )
                 else:
-                    delay = 2 ** attempt
+                    delay = 2**attempt
                     logger.debug(
                         "%s attempt %d failed, retrying in %ds",
-                        channel, attempt + 1, delay,
+                        channel,
+                        attempt + 1,
+                        delay,
                     )
                     await asyncio.sleep(delay)
 

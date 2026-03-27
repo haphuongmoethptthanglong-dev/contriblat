@@ -130,7 +130,12 @@ class GitHubClient:
                     wait = 2**attempt
                     logger.warning(
                         "GitHub %d error on %s %s, retrying in %ds (attempt %d/%d)",
-                        response.status_code, method, url, wait, attempt, _retries,
+                        response.status_code,
+                        method,
+                        url,
+                        wait,
+                        attempt,
+                        _retries,
                     )
                     await asyncio.sleep(wait)
                     continue

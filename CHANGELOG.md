@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.5] - 2026-03-28
+
+### Fixed
+- **Critical**: Webhook signature bypass — FastAPI returned HTTP 200 instead of 403 on invalid signatures
+- **Critical**: RetryMiddleware re-entry bug — shared mutable index caused retries to skip downstream middlewares
+- **Critical**: Context compressor passed wrong kwarg (`system_prompt=` → `system=`) to LLM providers
+- **High**: Webhook payload size check bypassed when `Content-Length` header missing
+- **High**: `get_pr_diff` bypassed retry/rate-limit logic by calling httpx directly
+- Ruff lint fixes in engine.py and pipeline.py
+
 ## [3.0.4] - 2026-03-28
 
 ### Fixed
