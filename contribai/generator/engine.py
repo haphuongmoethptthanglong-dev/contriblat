@@ -333,19 +333,23 @@ class ContributionGenerator:
         """Validate generated code changes for basic syntax sanity.
 
         Quick checks before expensive self-review:
-        - Non-empty edits/content
-        - No-op detection (search == replace)
+        - Non-empty new_content
+        - No-op detection (original == new)
         - Balanced brackets for common languages (string/comment-aware)
 
         Returns True if changes pass validation.
+
+        Note: `changes` is a list of FileChange objects (not raw dicts).
+        At this point, edits have already been applied — we only see
+        the final new_content.
         """
         if not changes:
             return False
 
         for change in changes:
             # Check new file content is non-trivial
-            if change.get("is_new_file") and change.get("content"):
-                content = change["content"].strip()
+            if change.is_new_file:
+                content = change.new_content.strip()
                 if len(content) < 10:
                     logger.debug(
                         "Validation: new file content too short (%d chars)",
@@ -353,20 +357,13 @@ class ContributionGenerator:
                     )
                     return False
 
-            # Check edits have substance
-            edits = change.get("edits", [])
-            for edit in edits:
-                search = edit.get("search", "")
-                replace = edit.get("replace", "")
-                if not search and not replace:
-                    logger.debug("Validation: empty search/replace pair")
-                    return False
-                if search == replace:
-                    logger.debug("Validation: replace identical to search (no-op)")
-                    return False
+            # Check that content actually changed
+            if change.original_content and change.new_content == change.original_content:
+                logger.debug("Validation: new_content identical to original (no-op)")
+                return False
 
             # Balanced bracket check — skip brackets inside strings and comments
-            code_text = change.get("content", "") or "".join(e.get("replace", "") for e in edits)
+            code_text = change.new_content
             if code_text:
                 unbalanced = self._count_unbalanced_brackets(code_text)
                 if unbalanced > 5:
@@ -757,10 +754,12 @@ class ContributionGenerator:
 
         prompt += (
             "\nAnswer these questions:\n"
-            "1. Does the change correctly fix the described issue?\n"
-            "2. Does it introduce any new bugs or security issues?\n"
-            "3. Does it follow good coding practices?\n"
-            "4. Is the change minimal and focused?\n\n"
+            "1. Does the change address the described issue?\n"
+            "2. Does it introduce any obvious new bugs or security vulnerabilities?\n"
+            "3. Is the change reasonable and follows existing code style?\n\n"
+            "IMPORTANT: Be lenient. APPROVE if the change is a net improvement, "
+            "even if minor improvements could be made. Only REJECT if the change "
+            "is clearly wrong, introduces a bug, or is completely unrelated to the issue.\n\n"
             "Reply with APPROVE or REJECT followed by brief reasoning."
         )
 
