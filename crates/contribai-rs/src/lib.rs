@@ -20,9 +20,13 @@ pub mod github;
 pub mod issues;
 pub mod llm;
 pub mod mcp;
+pub mod notifications;
 pub mod orchestrator;
+pub mod plugins;
 pub mod pr;
 pub mod sandbox;
+pub mod scheduler;
+pub mod templates;
 
 /// Current version of ContribAI.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
