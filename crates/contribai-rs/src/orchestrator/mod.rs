@@ -1,3 +1,4 @@
 //! Pipeline orchestrator and memory persistence.
 
-// TODO: Phase 6
+pub mod memory;
+pub mod pipeline;

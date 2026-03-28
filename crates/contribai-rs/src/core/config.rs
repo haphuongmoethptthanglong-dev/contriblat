@@ -253,6 +253,10 @@ pub struct PipelineConfig {
     pub min_quality_score: f64,
     #[serde(default)]
     pub dry_run: bool,
+    #[serde(default = "default_max_repos_per_run")]
+    pub max_repos_per_run: usize,
+    #[serde(default = "default_max_concurrent_repos")]
+    pub max_concurrent_repos: usize,
 }
 
 fn default_max_retries() -> u32 {
@@ -261,6 +265,12 @@ fn default_max_retries() -> u32 {
 fn default_min_quality_score() -> f64 {
     0.6
 }
+fn default_max_repos_per_run() -> usize {
+    10
+}
+fn default_max_concurrent_repos() -> usize {
+    3
+}
 
 impl Default for PipelineConfig {
     fn default() -> Self {
@@ -268,6 +278,8 @@ impl Default for PipelineConfig {
             max_retries: default_max_retries(),
             min_quality_score: default_min_quality_score(),
             dry_run: false,
+            max_repos_per_run: default_max_repos_per_run(),
+            max_concurrent_repos: default_max_concurrent_repos(),
         }
     }
 }
