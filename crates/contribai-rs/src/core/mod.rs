@@ -1,6 +1,9 @@
 pub mod config;
 pub mod error;
 pub mod events;
+pub mod leaderboard;
 pub mod middleware;
 pub mod models;
+pub mod profiles;
+pub mod quotas;
 pub mod retry;
