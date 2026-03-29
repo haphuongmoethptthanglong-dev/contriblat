@@ -42,7 +42,8 @@ impl ContribAIConfig {
     pub fn from_yaml(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| ContribError::Config(format!("Cannot read {}: {}", path.display(), e)))?;
-        let config: Self = serde_yaml::from_str(&content)?;
+        let mut config: Self = serde_yaml::from_str(&content)?;
+        config.resolve_secrets();
         Ok(config)
     }
 
@@ -65,6 +66,43 @@ impl ContribAIConfig {
 
         // No config file found — use defaults + env vars
         Ok(Self::default())
+    }
+
+    /// Resolve empty secrets from environment variables and CLI tools.
+    ///
+    /// Mirrors Python's `@model_validator(mode='after')`:
+    /// - GitHub token: `GITHUB_TOKEN` env → `gh auth token` CLI
+    /// - Gemini key:   `GEMINI_API_KEY` env
+    /// - Vertex project: `GOOGLE_CLOUD_PROJECT` env → `gcloud config get-value project`
+    fn resolve_secrets(&mut self) {
+        // GitHub token
+        if self.github.token.is_empty() {
+            self.github.token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
+        }
+        if self.github.token.is_empty() {
+            self.github.token = resolve_gh_token();
+        }
+
+        // LLM secrets
+        if self.llm.api_key.is_empty() {
+            let env_map = [
+                ("gemini", "GEMINI_API_KEY"),
+                ("openai", "OPENAI_API_KEY"),
+                ("anthropic", "ANTHROPIC_API_KEY"),
+            ];
+            for (provider, env_var) in &env_map {
+                if self.llm.provider == *provider {
+                    self.llm.api_key = std::env::var(env_var).unwrap_or_default();
+                    break;
+                }
+            }
+        }
+
+        // Vertex AI project
+        if self.llm.vertex_project.is_empty() {
+            self.llm.vertex_project = std::env::var("GOOGLE_CLOUD_PROJECT")
+                .unwrap_or_else(|_| resolve_gcloud_project());
+        }
     }
 }
 
@@ -118,12 +156,31 @@ fn default_max_prs_per_day() -> u32 {
 
 impl Default for GitHubConfig {
     fn default() -> Self {
+        // Priority: GITHUB_TOKEN env → `gh auth token` CLI
+        let token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
+        let token = if token.is_empty() {
+            resolve_gh_token()
+        } else {
+            token
+        };
         Self {
-            token: std::env::var("GITHUB_TOKEN").unwrap_or_default(),
+            token,
             rate_limit_buffer: default_rate_limit_buffer(),
             max_prs_per_day: default_max_prs_per_day(),
         }
     }
+}
+
+/// Run `gh auth token` to get the GitHub token from gh CLI.
+fn resolve_gh_token() -> String {
+    std::process::Command::new("gh")
+        .args(["auth", "token"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default()
 }
 
 /// LLM provider configuration.
@@ -141,6 +198,19 @@ pub struct LlmConfig {
     pub max_tokens: u32,
     /// For OpenAI-compatible endpoints.
     pub base_url: Option<String>,
+    /// Google Cloud project for Vertex AI (replaces api_key auth).
+    #[serde(default)]
+    pub vertex_project: String,
+    /// Vertex AI endpoint location (default: "global").
+    #[serde(default = "default_vertex_location")]
+    pub vertex_location: String,
+}
+
+impl LlmConfig {
+    /// Whether to use Vertex AI instead of API key auth.
+    pub fn use_vertex(&self) -> bool {
+        !self.vertex_project.is_empty()
+    }
 }
 
 impl std::fmt::Debug for LlmConfig {
@@ -152,6 +222,8 @@ impl std::fmt::Debug for LlmConfig {
             .field("temperature", &self.temperature)
             .field("max_tokens", &self.max_tokens)
             .field("base_url", &self.base_url)
+            .field("vertex_project", &self.vertex_project)
+            .field("vertex_location", &self.vertex_location)
             .finish()
     }
 }
@@ -168,18 +240,40 @@ fn default_temperature() -> f64 {
 fn default_max_tokens() -> u32 {
     4096
 }
+fn default_vertex_location() -> String {
+    "global".to_string()
+}
 
 impl Default for LlmConfig {
     fn default() -> Self {
+        // Priority for Gemini: GEMINI_API_KEY env → Vertex AI via GOOGLE_CLOUD_PROJECT env → gcloud CLI
+        let api_key = std::env::var("GEMINI_API_KEY").unwrap_or_default();
+        let vertex_project = std::env::var("GOOGLE_CLOUD_PROJECT")
+            .unwrap_or_else(|_| resolve_gcloud_project());
         Self {
             provider: default_provider(),
-            api_key: std::env::var("GEMINI_API_KEY").unwrap_or_default(),
+            api_key,
             model: default_model(),
             temperature: default_temperature(),
             max_tokens: default_max_tokens(),
             base_url: None,
+            vertex_project,
+            vertex_location: default_vertex_location(),
         }
     }
+}
+
+/// Run `gcloud config get-value project` to get the active GCP project.
+fn resolve_gcloud_project() -> String {
+    std::process::Command::new("gcloud")
+        .args(["config", "get-value", "project"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty() && s != "(unset)")
+        .unwrap_or_default()
 }
 
 /// Analysis engine configuration.

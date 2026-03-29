@@ -64,21 +64,69 @@ pub trait LlmProvider: Send + Sync {
     ) -> Result<String>;
 }
 
+// ── gcloud token helper ───────────────────────────────────────────────────────
+
+/// Fetch an access token from `gcloud auth print-access-token`.
+/// Used for Vertex AI authentication.
+fn fetch_gcloud_token() -> Result<String> {
+    let out = std::process::Command::new("gcloud")
+        .args(["auth", "print-access-token"])
+        .output()
+        .map_err(|e| ContribError::Llm(format!("gcloud not found: {}", e)))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        return Err(ContribError::Llm(format!(
+            "gcloud auth print-access-token failed: {}",
+            stderr.trim()
+        )));
+    }
+
+    let token = String::from_utf8(out.stdout)
+        .map_err(|e| ContribError::Llm(format!("gcloud token encoding: {}", e)))?;
+    Ok(token.trim().to_string())
+}
+
 // ── Gemini Provider (primary) ─────────────────────────────────────────────────
 
 /// Google Gemini provider — primary/default.
 ///
-/// Uses the Gemini REST API directly via reqwest.
+/// Supports both API key auth and Vertex AI (Google Cloud).
+/// When `vertex_project` is set in config, uses `gcloud auth print-access-token`
+/// and routes to the Vertex AI endpoint (no API key needed).
 pub struct GeminiProvider {
     client: Client,
+    /// Non-empty for API key auth; empty for Vertex AI.
     api_key: String,
     model: String,
     temperature: f64,
     max_tokens: u32,
+    /// Non-empty when using Vertex AI.
+    vertex_project: String,
+    vertex_location: String,
 }
 
 impl GeminiProvider {
     pub fn new(config: &LlmConfig) -> Result<Self> {
+        if config.use_vertex() {
+            // Vertex AI mode — token fetched per-request from gcloud CLI
+            info!(
+                model = %config.model,
+                project = %config.vertex_project,
+                "Gemini via Vertex AI"
+            );
+            return Ok(Self {
+                client: Client::new(),
+                api_key: String::new(),
+                model: config.model.clone(),
+                temperature: config.temperature,
+                max_tokens: config.max_tokens,
+                vertex_project: config.vertex_project.clone(),
+                vertex_location: config.vertex_location.clone(),
+            });
+        }
+
+        // API key mode
         let api_key = if !config.api_key.is_empty() {
             config.api_key.clone()
         } else {
@@ -94,7 +142,29 @@ impl GeminiProvider {
             model: config.model.clone(),
             temperature: config.temperature,
             max_tokens: config.max_tokens,
+            vertex_project: String::new(),
+            vertex_location: String::new(),
         })
+    }
+
+    /// Build the request URL and auth header.
+    /// Returns (url, Option<bearer_token>).
+    fn build_endpoint(&self) -> Result<(String, Option<String>)> {
+        if !self.vertex_project.is_empty() {
+            // Vertex AI endpoint
+            let url = format!(
+                "https://{}-aiplatform.googleapis.com/v1/projects/{}/locations/{}/publishers/google/models/{}:generateContent",
+                self.vertex_location, self.vertex_project, self.vertex_location, self.model
+            );
+            let token = fetch_gcloud_token()?;
+            Ok((url, Some(token)))
+        } else {
+            let url = format!(
+                "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
+                self.model, self.api_key
+            );
+            Ok((url, None))
+        }
     }
 }
 
@@ -110,10 +180,7 @@ impl LlmProvider for GeminiProvider {
         let temp = temperature.unwrap_or(self.temperature);
         let max_tok = max_tokens.unwrap_or(self.max_tokens);
 
-        let url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-            self.model, self.api_key
-        );
+        let (url, bearer) = self.build_endpoint()?;
 
         let mut body = json!({
             "contents": [{
@@ -132,10 +199,11 @@ impl LlmProvider for GeminiProvider {
             });
         }
 
-        let response = self
-            .client
-            .post(&url)
-            .json(&body)
+        let mut req = self.client.post(&url).json(&body);
+        if let Some(token) = bearer {
+            req = req.bearer_auth(token);
+        }
+        let response = req
             .send()
             .await
             .map_err(|e| ContribError::Llm(format!("Gemini HTTP error: {}", e)))?;
@@ -180,10 +248,7 @@ impl LlmProvider for GeminiProvider {
         let temp = temperature.unwrap_or(self.temperature);
         let max_tok = max_tokens.unwrap_or(self.max_tokens);
 
-        let url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-            self.model, self.api_key
-        );
+        let (url, bearer) = self.build_endpoint()?;
 
         let contents: Vec<Value> = messages
             .iter()
@@ -214,10 +279,11 @@ impl LlmProvider for GeminiProvider {
             });
         }
 
-        let response = self
-            .client
-            .post(&url)
-            .json(&body)
+        let mut req = self.client.post(&url).json(&body);
+        if let Some(token) = bearer {
+            req = req.bearer_auth(token);
+        }
+        let response = req
             .send()
             .await
             .map_err(|e| ContribError::Llm(format!("Gemini HTTP error: {}", e)))?;
@@ -599,6 +665,8 @@ mod tests {
             temperature: 0.3,
             max_tokens: 4096,
             base_url: None,
+            vertex_project: String::new(),
+            vertex_location: "global".into(),
         };
         let result = create_llm_provider(&config);
         assert!(result.is_err());
@@ -610,8 +678,7 @@ mod tests {
 
     #[test]
     fn test_create_gemini_requires_key() {
-        // If GEMINI_API_KEY env var is not set and api_key is empty, creation should fail
-        // We test this by checking that providing an explicit key works
+        // Providing an explicit key should succeed regardless of env
         let config = LlmConfig {
             provider: "gemini".into(),
             api_key: "explicit-test-key".into(),
@@ -619,6 +686,8 @@ mod tests {
             temperature: 0.3,
             max_tokens: 4096,
             base_url: None,
+            vertex_project: String::new(),
+            vertex_location: "global".into(),
         };
         let result = create_llm_provider(&config);
         assert!(result.is_ok());
@@ -633,6 +702,8 @@ mod tests {
             temperature: 0.3,
             max_tokens: 4096,
             base_url: None,
+            vertex_project: String::new(),
+            vertex_location: "global".into(),
         };
         let result = create_llm_provider(&config);
         assert!(result.is_ok());
@@ -647,8 +718,27 @@ mod tests {
             temperature: 0.3,
             max_tokens: 4096,
             base_url: None,
+            vertex_project: String::new(),
+            vertex_location: "global".into(),
         };
         let result = create_llm_provider(&config);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_create_gemini_vertex_mode() {
+        // Vertex AI mode: no api_key needed when vertex_project is set
+        let config = LlmConfig {
+            provider: "gemini".into(),
+            api_key: String::new(),
+            model: "gemini-2.5-flash".into(),
+            temperature: 0.3,
+            max_tokens: 4096,
+            base_url: None,
+            vertex_project: "my-gcp-project".into(),
+            vertex_location: "us-central1".into(),
+        };
+        let result = create_llm_provider(&config);
+        assert!(result.is_ok(), "Vertex AI mode should succeed without api_key: {:?}", result.err().map(|e| e.to_string()));
     }
 }
