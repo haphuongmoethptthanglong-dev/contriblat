@@ -46,3 +46,7 @@ htmlcov/
 # Logs
 *.log
 logs/
+
+# Rust build artifacts
+/target/
+Cargo.lock

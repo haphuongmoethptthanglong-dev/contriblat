@@ -3,10 +3,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "contribai"
+name = "contribai-python"
 version = "4.1.0"
-description = "AI Agent that automatically contributes to open source projects on GitHub"
-readme = "README.md"
+description = "[LEGACY] Python implementation of ContribAI — use the Rust version (v5.1.0+)"
+readme = "python/README_PYTHON.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
 authors = [{ name = "ContribAI Team" }]
@@ -55,7 +55,7 @@ mcp = [
 ]
 
 [project.scripts]
-contribai = "contribai.cli.main:cli"
+contribai-py = "contribai.cli.main:cli"
 
 [tool.ruff]
 target-version = "py311"
@@ -66,23 +66,23 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = ["python/tests"]
 
 [tool.coverage.run]
 source = ["contribai"]
 omit = [
-    "contribai/web/*",
-    "contribai/scheduler/*",
-    "contribai/plugins/*",
-    "contribai/templates/*",
-    "contribai/notifications/*",
-    "contribai/cli/tui.py",
-    "contribai/core/leaderboard.py",
-    "contribai/core/profiles.py",
-    "contribai/core/quotas.py",
-    "contribai/llm/agents.py",
-    "contribai/llm/models.py",
-    "contribai/llm/router.py",
+    "python/contribai/web/*",
+    "python/contribai/scheduler/*",
+    "python/contribai/plugins/*",
+    "python/contribai/templates/*",
+    "python/contribai/notifications/*",
+    "python/contribai/cli/tui.py",
+    "python/contribai/core/leaderboard.py",
+    "python/contribai/core/profiles.py",
+    "python/contribai/core/quotas.py",
+    "python/contribai/llm/agents.py",
+    "python/contribai/llm/models.py",
+    "python/contribai/llm/router.py",
 ]
 
 [tool.coverage.report]
@@ -93,4 +93,4 @@ exclude_lines = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["contribai"]
+packages = ["python/contribai"]
