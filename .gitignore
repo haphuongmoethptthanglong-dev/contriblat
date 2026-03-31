@@ -50,3 +50,8 @@ logs/
 # Rust build artifacts
 /target/
 Cargo.lock
+
+# Release binaries (built locally)
+contribai-*.exe
+contribai-v*
+tmp_*.md
