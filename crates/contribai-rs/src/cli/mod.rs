@@ -1488,7 +1488,38 @@ fn run_models(task_filter: Option<&str>) -> anyhow::Result<()> {
     }
 
     const MODELS: &[ModelDef] = &[
-        // ── Google Gemini ──────────────────────────────────────────────
+        // ── Google Gemini 3.x (latest) ────────────────────────────────
+        ModelDef {
+            name: "gemini-3.1-pro",
+            provider: "google",
+            tier: "PRO",
+            coding: 10,
+            analysis: 10,
+            speed: 7,
+            cost: "$2.00/$12.0",
+            best_for: "analysis, code",
+        },
+        ModelDef {
+            name: "gemini-3-flash",
+            provider: "google",
+            tier: "FLASH",
+            coding: 9,
+            analysis: 9,
+            speed: 9,
+            cost: "$0.50/$3.00",
+            best_for: "code, review",
+        },
+        ModelDef {
+            name: "gemini-3.1-flash-lite",
+            provider: "google",
+            tier: "LITE",
+            coding: 8,
+            analysis: 7,
+            speed: 10,
+            cost: "$0.25/$1.50",
+            best_for: "docs, review",
+        },
+        // ── Google Gemini 2.5 (stable) ────────────────────────────────
         ModelDef {
             name: "gemini-2.5-pro",
             provider: "google",
