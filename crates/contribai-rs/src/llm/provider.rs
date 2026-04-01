@@ -307,12 +307,7 @@ impl LlmProvider for GeminiProvider {
                 // Some models return parts as array of text chunks
                 data["candidates"][0]["content"]["parts"]
                     .as_array()
-                    .and_then(|parts| {
-                        parts
-                            .iter()
-                            .filter_map(|p| p["text"].as_str())
-                            .next()
-                    })
+                    .and_then(|parts| parts.iter().filter_map(|p| p["text"].as_str()).next())
             })
             .unwrap_or("");
 
@@ -391,9 +386,7 @@ impl LlmProvider for GeminiProvider {
             .or_else(|| {
                 data["candidates"][0]["content"]["parts"]
                     .as_array()
-                    .and_then(|parts| {
-                        parts.iter().filter_map(|p| p["text"].as_str()).next()
-                    })
+                    .and_then(|parts| parts.iter().filter_map(|p| p["text"].as_str()).next())
             })
             .unwrap_or("");
 
