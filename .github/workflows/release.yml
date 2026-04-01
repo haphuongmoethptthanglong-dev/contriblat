@@ -9,7 +9,7 @@ jobs:
   # ── Rust binary release (v5+) ─────────────────────────────────────────────────
   release-rust:
     name: Build Rust Binary
-    if: startsWith(github.ref_name, 'v5')
+    if: startsWith(github.ref_name, 'v5') || startsWith(github.ref_name, 'v6') || startsWith(github.ref_name, 'v7') || startsWith(github.ref_name, 'v8') || startsWith(github.ref_name, 'v9')
     strategy:
       matrix:
         include:
@@ -22,6 +22,9 @@ jobs:
           - os: macos-latest
             target: x86_64-apple-darwin
             suffix: macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            suffix: macos-aarch64
 
     runs-on: ${{ matrix.os }}
     permissions:
@@ -80,7 +83,7 @@ jobs:
   # ── Python legacy release (v4 and below) ─────────────────────────────────────
   release-python:
     name: Build Python Package
-    if: "!startsWith(github.ref_name, 'v5')"
+    if: startsWith(github.ref_name, 'v4') || startsWith(github.ref_name, 'v3') || startsWith(github.ref_name, 'v2') || startsWith(github.ref_name, 'v1') || startsWith(github.ref_name, 'v0')
     runs-on: ubuntu-latest
     permissions:
       contents: write
