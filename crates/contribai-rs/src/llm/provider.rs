@@ -669,12 +669,12 @@ impl LlmProvider for OllamaProvider {
 /// Create an LLM provider instance from config.
 pub fn create_llm_provider(config: &LlmConfig) -> Result<Box<dyn LlmProvider>> {
     match config.provider.as_str() {
-        "gemini" => Ok(Box::new(GeminiProvider::new(config)?)),
+        "gemini" | "vertex" => Ok(Box::new(GeminiProvider::new(config)?)),
         "openai" => Ok(Box::new(OpenAIProvider::new(config)?)),
         "anthropic" => Ok(Box::new(AnthropicProvider::new(config)?)),
         "ollama" => Ok(Box::new(OllamaProvider::new(config)?)),
         other => Err(ContribError::Llm(format!(
-            "Unknown LLM provider: {}. Available: gemini, openai, anthropic, ollama",
+            "Unknown LLM provider: {}. Available: gemini, vertex, openai, anthropic, ollama",
             other
         ))),
     }
