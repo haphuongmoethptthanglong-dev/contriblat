@@ -11,7 +11,7 @@ It discovers repos, analyzes code, generates fixes, and submits pull requests �
 **It is NOT** a library/SDK, web app, or CLI tool intended for end-user consumption.
 It is itself an AI agent that operates on other GitHub repositories.
 
-> **v5.3.0 — Primary implementation is Rust** (`crates/contribai-rs/`).
+> **v5.4.0 — Primary implementation is Rust** (`crates/contribai-rs/`).
 > Python code is in `python/` (legacy v4.1.0, kept for reference).
 
 ## Tech Stack
@@ -35,7 +35,7 @@ It is itself an AI agent that operates on other GitHub repositories.
 
 ```
 ContribAI/
-├── crates/contribai-rs/        ← PRIMARY: Rust v5.3.0
+├── crates/contribai-rs/        ← PRIMARY: Rust v5.4.0
 │   ├── src/
 │   │   ├── main.rs             entry point
 │   │   ├── lib.rs              library root
@@ -74,7 +74,7 @@ ContribAI/
 │   │   ├── web/mod.rs          axum dashboard API
 │   │   ├── sandbox/sandbox.rs  Docker + ast fallback
 │   │   └── tools/protocol.rs  tool interface
-│   ├── Cargo.toml              v5.3.0
+│   ├── Cargo.toml              v5.4.0
 │   └── tests/                 335+ Rust tests
 │
 ├── python/                     LEGACY Python v4.1.0
@@ -86,7 +86,7 @@ ContribAI/
 └── config.yaml.template        shared config template
 ```
 
-## Architecture (v5.3.0)
+## Architecture (v5.4.0)
 
 ### Core Pipeline
 ```
@@ -94,7 +94,7 @@ CLI → Pipeline → Middleware Chain → Analysis → Generation → PR → CI 
 ```
 
 ### Key Patterns
-1. **CLI (22 commands)** — clap derive + dialoguer menu (`cli/mod.rs`)
+1. **CLI (23 commands)** — clap derive + dialoguer menu (`cli/mod.rs`)
 2. **Interactive TUI** — ratatui 4-tab UI: Dashboard/PRs/Repos/Actions (`cli/tui.rs`)
 3. **Middleware Chain** — 5 ordered middlewares (`orchestrator/pipeline.rs`)
 4. **Progressive Skills** — 17 analysis skills loaded on-demand (`analysis/skills.rs`)
@@ -108,6 +108,8 @@ CLI → Pipeline → Middleware Chain → Analysis → Generation → PR → CI 
 12. **Sandbox** — Docker validation + local fallback (`sandbox/sandbox.rs`)
 13. **Web Dashboard** — axum REST API (`web/mod.rs`)
 14. **GraphQL** — GitHub GraphQL alongside REST v3 (`github/client.rs`)
+15. **Dream System** — Background memory consolidation into repo profiles (`orchestrator/memory.rs`)
+16. **Risk Classification** — LOW/MEDIUM/HIGH change risk gating (`generator/risk.rs`)
 
 ## Code Conventions (Rust)
 
@@ -174,7 +176,7 @@ async fn run_my_command(arg: &str, config_path: Option<&str>) -> anyhow::Result<
 }
 ```
 
-## CLI Commands (22 total)
+## CLI Commands (23 total)
 
 | Command | Handler | Description |
 |---------|---------|-------------|
@@ -199,13 +201,14 @@ async fn run_my_command(arg: &str, config_path: Option<&str>) -> anyhow::Result<
 | `mcp-server` | `run_mcp_server()` | MCP stdio server |
 | `init` | `wizard::run_wizard()` | Setup wizard |
 | `login` | `run_login_check()` | Interactive auth & provider config |
+| `dream` | `run_dream()` | Memory consolidation into repo profiles |
 | `config-get/set/list` | `config_editor::*` | YAML config editor |
 
 ## Testing
 
 ```bash
 # From project root (Rust workspace):
-cargo test                          # 335 tests
+cargo test                          # 353+ tests
 cargo test -- --nocapture           # with stdout
 cargo test cli::                    # CLI tests only
 cargo build --release               # production binary

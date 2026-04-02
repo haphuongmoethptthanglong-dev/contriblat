@@ -220,8 +220,8 @@ enum Commands {
 
     /// Dream — consolidate memory into durable repo profiles
     ///
-    /// Inspired by Claude Code's "Dream" system: aggregates PR outcomes,
-    /// feedback, and working memory into repo personality profiles.
+    /// Aggregates PR outcomes, feedback, and working memory
+    /// into repo personality profiles for smarter contributions.
     Dream {
         /// Force dream even if gates haven't been met
         #[arg(long)]
