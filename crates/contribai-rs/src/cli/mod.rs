@@ -476,9 +476,9 @@ impl Cli {
             }
 
             Commands::McpServer => {
-                print_banner();
-                println!("🔌 MCP server starting on stdio...");
-                println!("   Waiting for Claude Desktop connection...\n");
+                // MCP uses stdout for JSON-RPC — all human output goes to stderr
+                eprintln!("🔌 ContribAI MCP server starting on stdio...");
+                eprintln!("   Waiting for client connection...\n");
 
                 let config = load_config(self.config.as_deref())?;
                 let github = create_github(&config)?;
