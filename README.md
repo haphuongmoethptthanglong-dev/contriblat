@@ -1,102 +1,250 @@
+<div align="center">
+
 # ContribAI
 
-> **Autonomous AI agent that discovers, analyzes, and submits Pull Requests to open source projects on GitHub**
+**Autonomous AI agent that discovers, analyzes, and submits<br>Pull Requests to open source projects on GitHub.**
 
-[![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-335%20passed-brightgreen)](#testing)
-[![Version](https://img.shields.io/badge/version-5.3.0-blue)](https://github.com/tang-vu/ContribAI/releases)
+[![Rust](https://img.shields.io/badge/Rust-1.75+-f74c00?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Version](https://img.shields.io/badge/v5.3.0-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/tang-vu/ContribAI/releases)
+[![License](https://img.shields.io/badge/AGPL--3.0-green?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![Tests](https://img.shields.io/badge/335+_tests-passing-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
+[![PRs Merged](https://img.shields.io/badge/10_PRs-merged-blueviolet?style=for-the-badge&logo=git&logoColor=white)](HALL_OF_FAME.md)
 
-### 🏆 Results
+<br>
 
-| Metric | Count |
-|--------|-------|
-| **PRs Submitted** | 44+ |
-| **PRs Merged** | 10 |
-| **Repos Contributed** | 21+ |
-| **Notable Repos** | Worldmonitor (45k⭐), Maigret (19k⭐), AI-Research-SKILLs (6k⭐), s-tui (5k⭐), HolmesGPT (2k⭐) |
+[**Getting Started**](#-getting-started) · [**Features**](#-features) · [**Commands**](#-commands) · [**Architecture**](#-architecture) · [**Hall of Fame**](HALL_OF_FAME.md)
 
-> Set it up once, wake up to merged PRs. See the [**Hall of Fame →**](HALL_OF_FAME.md)
-
-ContribAI discovers open source repos, analyzes code for improvements, generates fixes, and submits Pull Requests — all autonomously. **v5.3.0 is written in Rust** with tree-sitter AST analysis for 13 languages and a ~4.5 MB single binary.
+<br>
 
 ```
-  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-  │ Discovery│───▶│ Analysis │───▶│Generator │───▶│ PR + CI  │───▶│ Patrol   │
-  │          │    │ 17 skills│    │ LLM +    │    │ Fork,    │    │ Auto-fix │
-  │ Find repos│    │ Security │    │ self-    │    │ commit,  │    │ review   │
-  │ by lang, │    │ quality, │    │ review,  │    │ create   │    │ feedback │
-  │ stars    │    │ perf     │    │ scoring  │    │ PR + CLA │    │ & reply  │
-  └──────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘
+Set it up once. Wake up to merged PRs.
 ```
 
-## Quick Start
+</div>
+
+---
+
+## 🏆 Track Record
+
+<table>
+<tr>
+<td width="50%">
+
+| Metric | |
+|:-------|------:|
+| **PRs Submitted** | `44+` |
+| **PRs Merged** | `10` |
+| **Repos Contributed** | `21+` |
+| **Languages Analyzed** | `13` |
+
+</td>
+<td width="50%">
+
+**Notable Contributions:**
+
+🌍 `Worldmonitor` — 45k ⭐ · 3 merged<br>
+🕵️ `Maigret` — 19k ⭐ · 3 merged<br>
+🤖 `AI-Research-SKILLs` — 6k ⭐ · 1 merged<br>
+📊 `s-tui` — 5k ⭐ · 1 merged<br>
+🔍 `HolmesGPT` — 2k ⭐ · 1 merged
+
+</td>
+</tr>
+</table>
+
+> See the full **[Hall of Fame →](HALL_OF_FAME.md)** for every PR with links.
+
+---
+
+## ⚡ How It Works
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Discovery  │────▶│  Analysis   │────▶│  Generator  │────▶│  PR + CI    │────▶│   Patrol    │
+│             │     │             │     │             │     │             │     │             │
+│ Search repos│     │ 13-lang AST │     │ LLM-powered │     │ Fork, commit│     │ Auto-fix    │
+│ by language │     │ 17 skills   │     │ code gen +  │     │ create PR   │     │ review      │
+│ and stars   │     │ security,   │     │ self-review │     │ sign CLA    │     │ feedback    │
+│             │     │ quality,    │     │ + scoring   │     │ monitor CI  │     │ & reply     │
+│             │     │ performance │     │             │     │             │     │             │
+└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
+```
+
+---
+
+## 🚀 Getting Started
+
+### Install
 
 ```bash
-# One-line install (auto-detects OS/arch)
-curl -fsSL https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.sh | bash
-# Windows: irm https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.ps1 | iex
-
-# Or build from source
+# Build from source (recommended)
 git clone https://github.com/tang-vu/ContribAI.git && cd ContribAI
 cargo install --path crates/contribai-rs
 
-# Configure
-contribai init                  # Interactive setup wizard
-contribai login                 # Verify auth + switch providers
-
-# Run
-contribai hunt              # Autonomous: discover repos → analyze → PR
-contribai target <repo_url> # Target a specific repo
-contribai hunt --dry-run    # Preview without creating PRs
-contribai interactive       # Browse PRs/repos in ratatui TUI
+# Or one-line install
+curl -fsSL https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.sh | bash
+# Windows:
+irm https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.ps1 | iex
 ```
 
-## Features
-
-| Category | Highlights |
-|----------|-----------|
-| **Analysis** | 13-language tree-sitter AST, security (SQLi, XSS, resource leak), code quality, performance, docs |
-| **LLM** | Gemini 3.x, OpenAI, Anthropic, Ollama, Vertex AI — smart task routing across model tiers |
-| **Hunt Mode** | Multi-round autonomous hunting, issue-first strategy, cross-file fixes |
-| **PR Patrol** | Monitors PRs for review feedback, auto-responds and pushes fixes |
-| **Interactive TUI** | ratatui 4-tab browser: Dashboard / PRs / Repos / Actions |
-| **MCP Server** | 21 tools for Claude Desktop via stdio JSON-RPC |
-| **Safety** | AI policy detection, CLA auto-signing, quality gate, duplicate prevention |
-| **Platform** | Web dashboard (axum), scheduler, webhooks, Docker, profiles, plugins |
-| **Notifications** | Real HTTP to Slack, Discord, Telegram — testable with `contribai notify-test` |
-
-## Usage (22 Commands)
+### Configure
 
 ```bash
-# Hunt & contribute
+contribai init     # Interactive setup wizard
+contribai login    # Verify auth + switch LLM providers
+```
+
+### Run
+
+```bash
+contribai hunt                # Autonomous: discover → analyze → PR
+contribai target <repo_url>   # Target a specific repo
+contribai analyze <repo_url>  # Dry-run analysis (no PRs)
+contribai interactive         # Browse in ratatui TUI
+```
+
+<details>
+<summary>📝 <strong>Example config.yaml</strong></summary>
+
+```yaml
+github:
+  token: "ghp_your_token"       # or set GITHUB_TOKEN env var
+
+llm:
+  provider: "gemini"            # gemini | openai | anthropic | ollama | vertex
+  model: "gemini-3-flash-preview"
+  api_key: "your_api_key"       # or set GEMINI_API_KEY env var
+
+discovery:
+  languages:                    # default: all 15 languages
+    - python
+    - javascript
+    - typescript
+    - go
+    - rust
+  stars_range: [100, 5000]
+```
+
+See [`config.yaml.template`](config.yaml.template) for all options.
+
+</details>
+
+---
+
+## ✨ Features
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 🔍 Code Analysis
+- **13-language AST** via tree-sitter
+- Security: SQLi, XSS, resource leaks
+- Code quality, complexity, dead code
+- Performance bottlenecks
+- Documentation gaps
+- **17 progressive skills** loaded on-demand
+
+### 🤖 Multi-LLM Support
+- **Gemini 3.x** (default) — Flash, Pro, Lite tiers
+- OpenAI, Anthropic, Ollama, Vertex AI
+- Smart task routing across model tiers
+- 5 specialized sub-agents
+
+### 🎯 Hunt Mode
+- Multi-round autonomous hunting
+- Issue-first strategy
+- Cross-file fixes
+- Outcome learning per repo
+
+</td>
+<td width="50%" valign="top">
+
+### 👁 PR Patrol
+- Monitors PRs for review feedback
+- LLM-classifies maintainer comments
+- Auto-pushes code fixes
+- Auto-replies to questions
+- Auto-cleans stale PRs from memory
+
+### 🔌 Integrations
+- **MCP Server** — 21 tools for Claude Desktop
+- **Web Dashboard** — axum REST API at `:8787`
+- **Cron Scheduler** — automated runs
+- **Docker** — compose-ready deployment
+- **Webhooks** — Slack, Discord, Telegram
+
+### 🛡 Safety
+- AI policy detection
+- CLA auto-signing
+- Quality gate scoring
+- Duplicate PR prevention
+- Protected file guardrails
+
+</td>
+</tr>
+</table>
+
+### Supported Languages
+
+| Deep AST (tree-sitter) | Fallback Parser |
+|:----------------------:|:---------------:|
+| Python · JavaScript · TypeScript · Go · Rust · Java | Kotlin → Java |
+| C · C++ · Ruby · PHP · C# · HTML · CSS | Swift → Java · Vue/Svelte → HTML |
+
+---
+
+## 📖 Commands
+
+ContribAI ships with **22 commands** accessible via CLI or interactive menu.
+
+<details>
+<summary>🔥 <strong>Hunt & Contribute</strong></summary>
+
+```bash
 contribai hunt                        # Autonomous discovery + PRs
 contribai hunt --dry-run              # Analyze only, no PRs
 contribai run                         # Single pipeline run
 contribai target <url>                # Target specific repo
 contribai analyze <url>               # Dry-run analysis
 contribai solve <url>                 # Solve open issues
+```
 
-# Monitor
+</details>
+
+<details>
+<summary>📊 <strong>Monitor & Stats</strong></summary>
+
+```bash
 contribai patrol                      # Respond to PR reviews
 contribai status                      # PR status table
 contribai stats                       # Contribution statistics
 contribai leaderboard                 # Merge rate by repo
 contribai system-status               # DB, rate limits, scheduler
+```
 
-# Interactive
+</details>
+
+<details>
+<summary>🖥️ <strong>Interactive & Config</strong></summary>
+
+```bash
 contribai                             # Interactive menu (22 items)
 contribai interactive                 # ratatui TUI browser
 contribai init                        # Setup wizard
 contribai login                       # Interactive auth + provider config
-
-# Config
-contribai config-list
-contribai config-get llm.provider
-contribai config-set llm.provider openai
+contribai config-list                 # Show all config
+contribai config-get llm.provider     # Get config value
+contribai config-set llm.provider openai  # Set config value
 contribai profile security-focused    # Named profile
+```
 
-# Servers
+</details>
+
+<details>
+<summary>🌐 <strong>Servers & Tools</strong></summary>
+
+```bash
 contribai web-server                  # Dashboard at :8787
 contribai schedule                    # Cron scheduler
 contribai mcp-server                  # MCP stdio server
@@ -104,64 +252,70 @@ contribai cleanup                     # Remove stale forks
 contribai notify-test                 # Test Slack/Discord/Telegram
 ```
 
-## Configuration
+</details>
 
-```yaml
-# config.yaml
-github:
-  token: "ghp_your_token"       # or set GITHUB_TOKEN env var
+---
 
-llm:
-  provider: "gemini"            # gemini | openai | anthropic | ollama
-  model: "gemini-3-flash-preview"
-  api_key: "your_api_key"
-
-discovery:
-  languages: [python, javascript, typescript, go, rust, java, ruby, php, c, cpp, csharp, swift, kotlin]
-  stars_range: [100, 5000]
-```
-
-See [`config.yaml.template`](config.yaml.template) for all options.
-
-## Architecture
+## 🏗 Architecture
 
 ```
 ContribAI/
-├── crates/contribai-rs/src/   ← PRIMARY: Rust v5.3.0
-│   ├── cli/                   # 22 commands + ratatui TUI
-│   ├── core/                  # Config, events, middleware
-│   ├── github/                # REST + GraphQL client
-│   ├── analysis/              # 13-lang AST + 17 progressive skills
-│   ├── generator/             # LLM fix generation + scoring
-│   ├── orchestrator/          # Pipeline + SQLite memory (72h TTL)
-│   ├── pr/                    # PR lifecycle + patrol
-│   ├── llm/                   # Multi-provider LLM + 5 sub-agents
-│   ├── mcp/                   # 21-tool MCP server (stdio)
-│   ├── web/                   # axum dashboard + webhooks
-│   ├── sandbox/               # Docker + local fallback
-│   └── scheduler/             # Tokio cron
+├── crates/contribai-rs/src/        ← Rust v5.3.0 (primary)
+│   ├── cli/                        22 commands + ratatui TUI
+│   ├── core/                       Config, events, error types
+│   ├── github/                     REST v3 + GraphQL client
+│   ├── analysis/                   13-lang AST + 17 skills
+│   ├── generator/                  LLM code generation + scoring
+│   ├── orchestrator/               Pipeline + SQLite memory (72h TTL)
+│   ├── llm/                        Multi-provider + 5 sub-agents
+│   ├── pr/                         PR lifecycle + patrol + CI
+│   ├── mcp/                        21-tool MCP server (stdio)
+│   ├── web/                        axum dashboard + webhooks
+│   ├── sandbox/                    Docker + local fallback
+│   └── tools/                      Tool protocol interface
 │
-└── python/                    # Legacy v4.1.0 (reference only)
+└── python/                         Legacy v4.1.0 (reference only)
 ```
 
-See [`docs/system-architecture.md`](docs/system-architecture.md) for details.
+<details>
+<summary>🔧 <strong>Tech Stack</strong></summary>
 
-## Testing
+| Layer | Technology |
+|:------|:-----------|
+| Language | **Rust 2021** (primary), Python 3.11+ (legacy) |
+| Async | Tokio (full), async/await throughout |
+| HTTP | reqwest 0.12 (async, rustls-tls) |
+| Database | SQLite (rusqlite, bundled) |
+| LLM | Gemini 3.x, OpenAI, Anthropic, Ollama, Vertex AI |
+| GitHub | REST API v3 + GraphQL |
+| AST | tree-sitter (13 languages) |
+| Web | axum 0.7 + tower-http |
+| TUI | ratatui + crossterm |
+| CLI | clap v4 + dialoguer + colored |
+| Tests | 335+ tests (mockall, wiremock, tokio-test) |
+
+</details>
+
+See [`docs/system-architecture.md`](docs/system-architecture.md) for the full design.
+
+---
+
+## 🧪 Testing
 
 ```bash
-# Rust (primary)
-cargo test                  # 335+ tests
-cargo test -- --nocapture   # with stdout
-
-# Python legacy
-cd python && pytest tests/ -v
+cargo test                  # Run all 335+ tests
+cargo test -- --nocapture   # With stdout output
+cargo test ast_intel        # AST module tests only
+cargo clippy                # Lint check
 ```
 
-## MCP — Use from Claude Desktop / Antigravity IDE
+---
+
+## 🔌 MCP Server
+
+Use ContribAI as a tool provider for **Claude Desktop** or **Antigravity IDE**:
 
 ```json
-// ~/.config/claude/claude_desktop_config.json
-// or ~/.gemini/antigravity/mcp_config.json
 {
   "mcpServers": {
     "contribai": {
@@ -172,28 +326,43 @@ cd python && pytest tests/ -v
 }
 ```
 
-21 tools available: repo analysis, PR management, GitHub search, issue solving, memory queries.
+> 21 tools available: repo analysis, PR management, GitHub search, issue solving, memory queries, and more.
 
-## Docker
+---
+
+## 🐳 Docker
 
 ```bash
 docker compose up -d dashboard            # Dashboard at :8787
-docker compose run --rm runner run        # One-shot run
-docker compose up -d dashboard scheduler  # Dashboard + scheduler
+docker compose run --rm runner run        # One-shot pipeline run
+docker compose up -d dashboard scheduler  # Dashboard + cron scheduler
 ```
 
-## Documentation
+---
 
-| Doc | Description |
-|-----|-------------|
-| [`HALL_OF_FAME.md`](HALL_OF_FAME.md) | **10 merged** · **14 closed** across 21+ repos — real results |
-| [`AGENTS.md`](AGENTS.md) | AI agent guide — architecture, patterns, CLI reference |
-| [`deployment-guide.md`](docs/deployment-guide.md) | Install, Docker, config, all 22 CLI commands |
-| [`system-architecture.md`](docs/system-architecture.md) | Pipeline, middleware, events, LLM routing |
-| [`codebase-summary.md`](docs/codebase-summary.md) | Module map, tech stack, data structures |
-| [`project-roadmap.md`](docs/project-roadmap.md) | Version history and future plans |
-| [`python/README_PYTHON.md`](python/README_PYTHON.md) | Legacy Python v4.1.0 reference |
+## 📚 Documentation
 
-## License
+| Document | Description |
+|:---------|:------------|
+| [**Hall of Fame**](HALL_OF_FAME.md) | 10 merged · 14 closed across 21+ repos |
+| [**AGENTS.md**](AGENTS.md) | AI agent guide — architecture, patterns, CLI reference |
+| [**Deployment Guide**](docs/deployment-guide.md) | Install, Docker, config, all 22 CLI commands |
+| [**System Architecture**](docs/system-architecture.md) | Pipeline, middleware, events, LLM routing |
+| [**Codebase Summary**](docs/codebase-summary.md) | Module map, tech stack, data structures |
+| [**Project Roadmap**](docs/project-roadmap.md) | Version history and future plans |
 
-AGPL-3.0 + Commons Clause — see [LICENSE](LICENSE) for details.
+---
+
+## 📄 License
+
+**AGPL-3.0 + Commons Clause** — see [LICENSE](LICENSE) for details.
+
+---
+
+<div align="center">
+
+**Built with Rust 🦀 and LLMs 🤖**
+
+[Releases](https://github.com/tang-vu/ContribAI/releases) · [Issues](https://github.com/tang-vu/ContribAI/issues) · [Hall of Fame](HALL_OF_FAME.md)
+
+</div>
