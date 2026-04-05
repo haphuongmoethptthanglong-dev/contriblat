@@ -394,6 +394,8 @@ pub fn write_wizard_config(result: &WizardResult) -> anyhow::Result<()> {
 fn apply_wizard_to_yaml(yaml: &str, result: &WizardResult) -> String {
     let mut lines: Vec<String> = yaml.lines().map(String::from).collect();
 
+    let mut has_base_url = false;
+
     for line in &mut lines {
         let trimmed = line.trim_start().to_string();
 
@@ -413,6 +415,7 @@ fn apply_wizard_to_yaml(yaml: &str, result: &WizardResult) -> String {
         }
         // Base URL
         else if trimmed.starts_with("base_url:") {
+            has_base_url = true;
             let val = result.base_url.as_deref().unwrap_or("");
             *line = format!("  base_url: \"{}\"", val);
         }
@@ -436,6 +439,15 @@ fn apply_wizard_to_yaml(yaml: &str, result: &WizardResult) -> String {
         }
     }
 
+    // If base_url: is missing from the file (legacy config), insert it after api_key:
+    if !has_base_url {
+        let val = result.base_url.as_deref().unwrap_or("");
+        let insert = format!("  base_url: \"{}\"", val);
+        if let Some(i) = lines.iter().position(|l| l.trim_start().starts_with("api_key:")) {
+            lines.insert(i + 1, insert);
+        }
+    }
+
     lines.join("\n") + "\n"
 }
 
@@ -455,6 +467,7 @@ llm:
   provider: "gemini"
   model: "gemini-3-flash-preview"
   api_key: ""
+  base_url: ""
   temperature: 0.3
   max_tokens: 8192
   vertex_project: ""
@@ -570,11 +583,11 @@ mod tests {
 
     #[test]
     fn test_apply_wizard_to_yaml() {
-        let yaml = "llm:\n  provider: \"gemini\"\n  model: \"old-model\"\n  api_key: \"\"\n  vertex_project: \"\"\n";
+        let yaml = "llm:\n  provider: \"gemini\"\n  model: \"old-model\"\n  api_key: \"\"\n  base_url: \"\"\n  vertex_project: \"\"\n";
         let result = WizardResult {
             provider: LlmChoice::OpenAi,
             api_key: Some("sk-test123".into()),
-            base_url: None,
+            base_url: Some("https://api.openai.com/v1".into()),
             vertex_project: None,
             github_token: None,
             max_prs_per_day: 10,
@@ -585,6 +598,30 @@ mod tests {
         assert!(updated.contains("openai"));
         assert!(updated.contains("gpt-4o"));
         assert!(updated.contains("sk-test123"));
+        assert!(updated.contains("base_url: \"https://api.openai.com/v1\""));
+    }
+
+    /// Verifies base_url is inserted when missing from legacy config.yaml
+    #[test]
+    fn test_apply_wizard_to_yaml_inserts_base_url_when_missing() {
+        // Legacy config without base_url: key
+        let yaml = "llm:\n  provider: \"anthropic\"\n  model: \"claude-3-5-sonnet-20241022\"\n  api_key: \"sk-old\"\n  temperature: 0.3\n  vertex_project: \"\"\n";
+        let result = WizardResult {
+            provider: LlmChoice::Anthropic,
+            api_key: Some("sk-new".into()),
+            base_url: Some("https://api.anthropic.com/v1".into()),
+            vertex_project: None,
+            github_token: None,
+            max_prs_per_day: 15,
+            max_repos_per_run: 20,
+            output_path: std::path::PathBuf::from("test.yaml"),
+        };
+        let updated = apply_wizard_to_yaml(yaml, &result);
+        assert!(updated.contains("base_url: \"https://api.anthropic.com/v1\""));
+        // base_url inserted after api_key
+        let api_key_pos = updated.find("api_key: \"sk-new\"").unwrap();
+        let base_url_pos = updated.find("base_url: \"https://api.anthropic.com/v1\"").unwrap();
+        assert!(base_url_pos > api_key_pos);
     }
 
     #[test]
