@@ -149,7 +149,15 @@ pub fn run_init_wizard(output_path: Option<&Path>) -> anyhow::Result<Option<Wiza
                 .allow_empty_password(true)
                 .interact()?;
             let api_key = if key.is_empty() { None } else { Some(key) };
-            (api_key, if base_url.trim().is_empty() { None } else { Some(base_url) }, None)
+            (
+                api_key,
+                if base_url.trim().is_empty() {
+                    None
+                } else {
+                    Some(base_url)
+                },
+                None,
+            )
         }
         LlmChoice::Anthropic => {
             println!(
@@ -167,7 +175,15 @@ pub fn run_init_wizard(output_path: Option<&Path>) -> anyhow::Result<Option<Wiza
                 .allow_empty_password(true)
                 .interact()?;
             let api_key = if key.is_empty() { None } else { Some(key) };
-            (api_key, if base_url.trim().is_empty() { None } else { Some(base_url) }, None)
+            (
+                api_key,
+                if base_url.trim().is_empty() {
+                    None
+                } else {
+                    Some(base_url)
+                },
+                None,
+            )
         }
         LlmChoice::Ollama => {
             println!(
@@ -180,7 +196,11 @@ pub fn run_init_wizard(output_path: Option<&Path>) -> anyhow::Result<Option<Wiza
                 .default(default_url.into())
                 .interact_text()
                 .unwrap_or_else(|_| default_url.into());
-            let base_url = if url.trim().is_empty() { None } else { Some(url) };
+            let base_url = if url.trim().is_empty() {
+                None
+            } else {
+                Some(url)
+            };
             (None, base_url, None)
         }
     };
@@ -317,11 +337,7 @@ fn print_wizard_summary(
         println!("  {:<20} {}", style("API Key:").dim(), style(masked).cyan());
     }
     if let Some(u) = base_url {
-        println!(
-            "  {:<20} {}",
-            style("Base URL:").dim(),
-            style(u).cyan()
-        );
+        println!("  {:<20} {}", style("Base URL:").dim(), style(u).cyan());
     }
     if let Some(p) = vertex_project {
         println!(
@@ -443,7 +459,10 @@ fn apply_wizard_to_yaml(yaml: &str, result: &WizardResult) -> String {
     if !has_base_url {
         let val = result.base_url.as_deref().unwrap_or("");
         let insert = format!("  base_url: \"{}\"", val);
-        if let Some(i) = lines.iter().position(|l| l.trim_start().starts_with("api_key:")) {
+        if let Some(i) = lines
+            .iter()
+            .position(|l| l.trim_start().starts_with("api_key:"))
+        {
             lines.insert(i + 1, insert);
         }
     }
@@ -620,7 +639,9 @@ mod tests {
         assert!(updated.contains("base_url: \"https://api.anthropic.com/v1\""));
         // base_url inserted after api_key
         let api_key_pos = updated.find("api_key: \"sk-new\"").unwrap();
-        let base_url_pos = updated.find("base_url: \"https://api.anthropic.com/v1\"").unwrap();
+        let base_url_pos = updated
+            .find("base_url: \"https://api.anthropic.com/v1\"")
+            .unwrap();
         assert!(base_url_pos > api_key_pos);
     }
 

@@ -1864,7 +1864,10 @@ async fn run_login_check(config_path: Option<&str>) -> anyhow::Result<()> {
                             String::new()
                         } else {
                             Input::new()
-                                .with_prompt(format!("{} base URL (optional)", choice.provider_name()))
+                                .with_prompt(format!(
+                                    "{} base URL (optional)",
+                                    choice.provider_name()
+                                ))
                                 .default(default_url.into())
                                 .allow_empty(true)
                                 .interact_text()
