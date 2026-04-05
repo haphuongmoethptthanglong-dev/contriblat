@@ -73,6 +73,7 @@ pub enum GithubAuthChoice {
 pub struct WizardResult {
     pub provider: LlmChoice,
     pub api_key: Option<String>,
+    pub base_url: Option<String>,
     pub vertex_project: Option<String>,
     pub github_token: Option<String>,
     pub max_prs_per_day: u32,
@@ -109,7 +110,7 @@ pub fn run_init_wizard(output_path: Option<&Path>) -> anyhow::Result<Option<Wiza
 
     // ── Step 2: Provider credentials ─────────────────────────────────────────
     println!("{}", style("Step 2/4 — Credentials").yellow().bold());
-    let (api_key, vertex_project) = match provider {
+    let (api_key, base_url, vertex_project) = match provider {
         LlmChoice::GeminiApiKey => {
             println!(
                 "  {}",
@@ -119,7 +120,7 @@ pub fn run_init_wizard(output_path: Option<&Path>) -> anyhow::Result<Option<Wiza
                 .with_prompt("Gemini API Key (hidden)")
                 .allow_empty_password(true)
                 .interact()?;
-            (if key.is_empty() { None } else { Some(key) }, None)
+            (if key.is_empty() { None } else { Some(key) }, None, None)
         }
         LlmChoice::VertexAi => {
             println!(
@@ -130,36 +131,57 @@ pub fn run_init_wizard(output_path: Option<&Path>) -> anyhow::Result<Option<Wiza
                 .with_prompt("Google Cloud Project ID")
                 .default(std::env::var("GOOGLE_CLOUD_PROJECT").unwrap_or_default())
                 .interact_text()?;
-            (None, if proj.is_empty() { None } else { Some(proj) })
+            (None, None, if proj.is_empty() { None } else { Some(proj) })
         }
         LlmChoice::OpenAi => {
             println!(
                 "  {}",
                 style("Get your key at: https://platform.openai.com/api-keys").dim()
             );
+            let base_url: String = Input::new()
+                .with_prompt("OpenAI-compatible base URL (optional)")
+                .default("https://api.openai.com/v1".into())
+                .allow_empty(true)
+                .interact_text()
+                .unwrap_or_default();
             let key: String = Password::new()
                 .with_prompt("OpenAI API Key (hidden)")
                 .allow_empty_password(true)
                 .interact()?;
-            (if key.is_empty() { None } else { Some(key) }, None)
+            let api_key = if key.is_empty() { None } else { Some(key) };
+            (api_key, if base_url.trim().is_empty() { None } else { Some(base_url) }, None)
         }
         LlmChoice::Anthropic => {
             println!(
                 "  {}",
                 style("Get your key at: https://console.anthropic.com/").dim()
             );
+            let base_url: String = Input::new()
+                .with_prompt("Anthropic-compatible base URL (optional)")
+                .default("https://api.anthropic.com/v1".into())
+                .allow_empty(true)
+                .interact_text()
+                .unwrap_or_default();
             let key: String = Password::new()
                 .with_prompt("Anthropic API Key (hidden)")
                 .allow_empty_password(true)
                 .interact()?;
-            (if key.is_empty() { None } else { Some(key) }, None)
+            let api_key = if key.is_empty() { None } else { Some(key) };
+            (api_key, if base_url.trim().is_empty() { None } else { Some(base_url) }, None)
         }
         LlmChoice::Ollama => {
             println!(
                 "  {}",
                 style("Make sure Ollama is running: https://ollama.ai").dim()
             );
-            (None, None)
+            let default_url = "http://localhost:11434";
+            let url: String = Input::new()
+                .with_prompt("Ollama base URL")
+                .default(default_url.into())
+                .interact_text()
+                .unwrap_or_else(|_| default_url.into());
+            let base_url = if url.trim().is_empty() { None } else { Some(url) };
+            (None, base_url, None)
         }
     };
 
@@ -240,6 +262,7 @@ pub fn run_init_wizard(output_path: Option<&Path>) -> anyhow::Result<Option<Wiza
     print_wizard_summary(
         &provider,
         &api_key,
+        &base_url,
         &vertex_project,
         max_prs,
         max_repos,
@@ -259,6 +282,7 @@ pub fn run_init_wizard(output_path: Option<&Path>) -> anyhow::Result<Option<Wiza
     Ok(Some(WizardResult {
         provider,
         api_key,
+        base_url,
         vertex_project,
         github_token,
         max_prs_per_day: max_prs,
@@ -270,6 +294,7 @@ pub fn run_init_wizard(output_path: Option<&Path>) -> anyhow::Result<Option<Wiza
 fn print_wizard_summary(
     provider: &LlmChoice,
     api_key: &Option<String>,
+    base_url: &Option<String>,
     vertex_project: &Option<String>,
     max_prs: u32,
     max_repos: u32,
@@ -290,6 +315,13 @@ fn print_wizard_summary(
     if let Some(k) = api_key {
         let masked = mask_secret(k);
         println!("  {:<20} {}", style("API Key:").dim(), style(masked).cyan());
+    }
+    if let Some(u) = base_url {
+        println!(
+            "  {:<20} {}",
+            style("Base URL:").dim(),
+            style(u).cyan()
+        );
     }
     if let Some(p) = vertex_project {
         println!(
@@ -378,6 +410,11 @@ fn apply_wizard_to_yaml(yaml: &str, result: &WizardResult) -> String {
         else if trimmed.starts_with("api_key:") {
             let val = result.api_key.as_deref().unwrap_or("");
             *line = format!("  api_key: \"{}\"", val);
+        }
+        // Base URL
+        else if trimmed.starts_with("base_url:") {
+            let val = result.base_url.as_deref().unwrap_or("");
+            *line = format!("  base_url: \"{}\"", val);
         }
         // Vertex project
         else if trimmed.starts_with("vertex_project:") {
@@ -537,6 +574,7 @@ mod tests {
         let result = WizardResult {
             provider: LlmChoice::OpenAi,
             api_key: Some("sk-test123".into()),
+            base_url: None,
             vertex_project: None,
             github_token: None,
             max_prs_per_day: 10,
