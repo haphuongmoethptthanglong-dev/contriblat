@@ -594,7 +594,9 @@ impl OpenAIProvider {
         let base_url = config
             .base_url
             .clone()
-            .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
+            .unwrap_or_else(|| "https://api.openai.com/v1".to_string())
+            .trim_end_matches('/')
+            .to_string();
 
         info!(model = %config.model, base_url = %base_url, "OpenAI provider");
 
@@ -711,7 +713,9 @@ impl AnthropicProvider {
         let base_url = config
             .base_url
             .clone()
-            .unwrap_or_else(|| "https://api.anthropic.com/v1".to_string());
+            .unwrap_or_else(|| "https://api.anthropic.com/v1".to_string())
+            .trim_end_matches('/')
+            .to_string();
 
         info!(model = %config.model, base_url = %base_url, "Anthropic provider");
 
@@ -768,7 +772,7 @@ impl LlmProvider for AnthropicProvider {
 
         let response = self
             .client
-            .post(self.base_url.to_string() + "/messages")
+            .post(format!("{}/messages", self.base_url))
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
