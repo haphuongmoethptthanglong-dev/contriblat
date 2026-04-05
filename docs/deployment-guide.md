@@ -1,6 +1,6 @@
 # Deployment Guide
 
-**Version:** 5.5.0 | **Language:** Rust | **Last Updated:** 2026-04-04
+**Version:** 5.8.1 | **Language:** Rust | **Last Updated:** 2026-04-05
 
 ---
 

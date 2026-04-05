@@ -12,8 +12,8 @@ cargo build --release
 cargo install --path crates/contribai-rs
 
 # Verify
-cargo test              # 335 tests must pass
-contribai --help        # shows 22 commands
+cargo test              # 418 tests must pass
+contribai --help        # shows 40+ commands
 ```
 
 > **Legacy Python** is in `python/` (v4.1.0, reference only).  
@@ -43,7 +43,7 @@ contribai --help        # shows 22 commands
 
 5. **Run tests**:
    ```bash
-   cargo test              # 335 tests
+   cargo test              # 418 tests
    cargo test -- --nocapture   # with stdout
    ```
 

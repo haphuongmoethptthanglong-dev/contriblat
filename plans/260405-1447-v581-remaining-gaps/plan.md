@@ -1,8 +1,9 @@
 ---
 title: "v5.8.1 Remaining Gaps + Code Review Fixes"
 description: "Closed-PR learnings, outcome-aware scoring, cross-file import cleanup, depth guard, integration test"
-status: pending
+status: completed
 priority: P2
+completed: 2026-04-05
 effort: 4h
 branch: main
 tags: [v5.8.1, patrol, scorer, ast, tests]
@@ -17,9 +18,9 @@ created: 2026-04-05
 
 | # | Phase | Items | Status | Effort |
 |---|-------|-------|--------|--------|
-| 1 | [Code Review Fixes](phase-01-code-review-fixes.md) | M-1, M-2, M-3 | Pending | 1.5h |
-| 2 | [Closed-PR Failure Analysis](phase-02-closed-pr-analysis.md) | Feature #1 | Pending | 1.5h |
-| 3 | [Outcome-Aware Quality Scoring](phase-03-outcome-scoring.md) | Feature #2 | Pending | 1h |
+| 1 | [Code Review Fixes](phase-01-code-review-fixes.md) | M-1, M-2, M-3 | Completed | 1.5h |
+| 2 | [Closed-PR Failure Analysis](phase-02-closed-pr-analysis.md) | Feature #1 | Completed | 1.5h |
+| 3 | [Outcome-Aware Quality Scoring](phase-03-outcome-scoring.md) | Feature #2 | Completed | 1h |
 
 ## Dependency Graph
 

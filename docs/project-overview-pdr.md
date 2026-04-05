@@ -1,6 +1,6 @@
 # ContribAI — Project Overview & PDR
 
-**Version:** 5.8.0 | **License:** AGPL-3.0 + Commons Clause | **Status:** Active Development
+**Version:** 5.8.1 | **License:** AGPL-3.0 + Commons Clause | **Status:** Active Development
 
 ---
 
@@ -8,7 +8,7 @@
 
 **ContribAI** is an autonomous AI agent written in Rust that discovers open source repositories on GitHub, analyzes them for improvement opportunities, generates high-quality code fixes, and submits Pull Requests — all without human intervention. It bridges the gap between maintainer bandwidth constraints and contributor availability by delivering production-grade contributions at scale.
 
-**v5.8.0** is the full Rust rewrite: ~4.5 MB single binary, ~5ms startup, 40+ CLI commands, interactive TUI, real notification delivery, watchlist mode, dream memory, risk classification, cross-file import resolution, and 413 tests with integration test coverage.
+**v5.8.1** is the full Rust rewrite: ~4.5 MB single binary, ~5ms startup, 40+ CLI commands, interactive TUI, real notification delivery, watchlist mode, dream memory, risk classification, cross-file import resolution, outcome-aware scoring, and 418 tests with integration test coverage.
 
 ---
 
@@ -233,7 +233,7 @@ Autonomous, safe, high-quality code contributions that:
 | Requirement | Target |
 |---|---|
 | Uptime (dashboard) | 99.5% (self-hosted) |
-| CI pass rate (tests) | 100% (cargo test: 355 tests) |
+| CI pass rate (tests) | 100% (cargo test: 418 tests) |
 | Recovery time (crash) | < 5 minutes (auto-restart) |
 
 ### Security (NFR-S)
@@ -277,7 +277,7 @@ Autonomous, safe, high-quality code contributions that:
 | **Code review comments** | < 2 per PR | GitHub API |
 | **Rejection rate** | < 20% | PR close reason |
 | **Quality score avg** | > 0.75/1.0 | Scorer output |
-| **Test coverage (Rust)** | 355+ tests | `cargo test` |
+| **Test coverage (Rust)** | 418 tests | `cargo test` |
 
 ---
 
