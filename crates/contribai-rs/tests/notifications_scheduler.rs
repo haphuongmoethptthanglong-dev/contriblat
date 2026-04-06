@@ -10,9 +10,10 @@
 #[test]
 fn test_slack_webhook_url_format() {
     // Valid Slack webhook URLs follow this pattern
+    // Use clearly fake but correctly-sized tokens to avoid secret scanning
     let valid_urls = vec![
-        "https://hooks.slack.com/services/EXAMPLE/EXAMPLE/EXAMPLE",
-        "https://hooks.slack.com/services/FAKE/FAKE/FAKE",
+        "https://hooks.slack.com/services/T0FAKETOKEN/B0FAKETOKEN/FAKETOKENXXXXXXXXXXXXXXXXXXXXXX",
+        "https://hooks.slack.com/services/T12345678/B12345678/abcdefghijklmnopqrstuvwxyz123456",
     ];
 
     for url in &valid_urls {
