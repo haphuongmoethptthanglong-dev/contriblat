@@ -901,8 +901,9 @@ impl LlmProvider for OllamaProvider {
 
 // ── Factory ───────────────────────────────────────────────────────────────────
 
-/// Create an LLM provider instance from config, wrapped with retry logic.
+/// Create an LLM provider instance from config, wrapped with retry + cache logic.
 pub fn create_llm_provider(config: &LlmConfig) -> Result<Box<dyn LlmProvider>> {
+    use super::cache::CachedLlmProvider;
     use super::retry::RetryingProvider;
 
     let base: Box<dyn LlmProvider> = match config.provider.as_str() {
@@ -917,7 +918,28 @@ pub fn create_llm_provider(config: &LlmConfig) -> Result<Box<dyn LlmProvider>> {
     }?;
 
     // Wrap with retry (3 retries, 1s base delay)
-    Ok(Box::new(RetryingProvider::with_config(base, 3, 1000)))
+    let with_retry = Box::new(RetryingProvider::with_config(base, 3, 1000));
+
+    // Optionally wrap with cache (cache layer is outermost — hits skip retry + API)
+    if config.cache_enabled {
+        let cache_path = dirs::home_dir()
+            .unwrap_or_default()
+            .join(".contribai")
+            .join("llm_cache.db");
+
+        let cache = super::cache::LlmCache::new(&cache_path, config.cache_ttl_days)
+            .map_err(|e| ContribError::Llm(format!("LLM cache init: {}", e)))?;
+
+        let model_name = config.model.clone();
+        let cached = CachedLlmProvider::new(with_retry, cache, model_name);
+        tracing::info!(
+            ttl_days = config.cache_ttl_days,
+            "LLM response cache enabled"
+        );
+        Ok(Box::new(cached) as Box<dyn LlmProvider>)
+    } else {
+        Ok(with_retry)
+    }
 }
 
 /// Create an LLM provider WITHOUT retry wrapper (for tests or perf-sensitive paths).
@@ -962,6 +984,8 @@ mod tests {
             base_url: None,
             vertex_project: String::new(),
             vertex_location: "global".into(),
+            cache_enabled: false,
+            cache_ttl_days: 7,
         };
         let result = create_llm_provider(&config);
         assert!(result.is_err());
@@ -983,6 +1007,8 @@ mod tests {
             base_url: None,
             vertex_project: String::new(),
             vertex_location: "global".into(),
+            cache_enabled: false,
+            cache_ttl_days: 7,
         };
         let result = create_llm_provider(&config);
         assert!(result.is_ok());
@@ -999,6 +1025,8 @@ mod tests {
             base_url: None,
             vertex_project: String::new(),
             vertex_location: "global".into(),
+            cache_enabled: false,
+            cache_ttl_days: 7,
         };
         let result = create_llm_provider(&config);
         assert!(result.is_ok());
@@ -1015,6 +1043,8 @@ mod tests {
             base_url: None,
             vertex_project: String::new(),
             vertex_location: "global".into(),
+            cache_enabled: false,
+            cache_ttl_days: 7,
         };
         let result = create_llm_provider(&config);
         assert!(result.is_ok());
@@ -1031,6 +1061,8 @@ mod tests {
             base_url: None,
             vertex_project: String::new(),
             vertex_location: "global".into(),
+            cache_enabled: false,
+            cache_ttl_days: 7,
         };
         let result = create_llm_provider(&config);
         assert!(result.is_ok());
@@ -1047,6 +1079,8 @@ mod tests {
             base_url: None,
             vertex_project: String::new(),
             vertex_location: "global".into(),
+            cache_enabled: false,
+            cache_ttl_days: 7,
         };
         let p = AnthropicProvider::new(&config).unwrap();
         assert_eq!(p.base_url, "https://api.anthropic.com/v1");
@@ -1063,6 +1097,8 @@ mod tests {
             base_url: Some("https://my-proxy.example.com/v1".into()),
             vertex_project: String::new(),
             vertex_location: "global".into(),
+            cache_enabled: false,
+            cache_ttl_days: 7,
         };
         let p = AnthropicProvider::new(&config).unwrap();
         assert_eq!(p.base_url, "https://my-proxy.example.com/v1");
@@ -1080,6 +1116,8 @@ mod tests {
             base_url: None,
             vertex_project: "my-gcp-project".into(),
             vertex_location: "us-central1".into(),
+            cache_enabled: false,
+            cache_ttl_days: 7,
         };
         let result = create_llm_provider(&config);
         assert!(

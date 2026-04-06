@@ -1,7 +1,6 @@
 //! Handles `Commands::Config`, `ConfigGet`, `ConfigSet`, `ConfigList` — show/edit configuration.
 
 use colored::Colorize;
-use console::style;
 
 use crate::cli::config_editor;
 use crate::cli::{load_config, print_banner};

@@ -1,6 +1,5 @@
 //! Shared utilities for CLI command handlers.
 
-use anyhow::Result;
 use contribai::core::config::ContribAIConfig;
 use contribai::core::events::EventBus;
 use contribai::github::client::GitHubClient;

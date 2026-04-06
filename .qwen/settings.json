@@ -6,7 +6,8 @@
       "Bash(sed *)",
       "Bash(echo *)",
       "Bash(mv *)",
-      "Bash(rm *)"
+      "Bash(rm *)",
+      "Bash(git tag *)"
     ]
   },
   "$version": 3

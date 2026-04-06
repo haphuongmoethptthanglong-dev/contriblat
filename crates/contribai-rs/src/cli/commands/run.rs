@@ -1,6 +1,5 @@
 //! Handles `Commands::Run` — auto-discover repos, analyze code, and submit PRs.
 
-use anyhow::anyhow;
 use colored::Colorize;
 
 use crate::cli::{

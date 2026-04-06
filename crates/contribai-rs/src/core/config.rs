@@ -232,6 +232,16 @@ pub struct LlmConfig {
     /// Vertex AI endpoint location (default: "global").
     #[serde(default = "default_vertex_location")]
     pub vertex_location: String,
+    /// Enable LLM response caching.
+    #[serde(default = "default_true")]
+    pub cache_enabled: bool,
+    /// Cache TTL in days (default: 7).
+    #[serde(default = "default_llm_cache_ttl_days")]
+    pub cache_ttl_days: u64,
+}
+
+fn default_llm_cache_ttl_days() -> u64 {
+    7
 }
 
 impl LlmConfig {
@@ -287,6 +297,8 @@ impl Default for LlmConfig {
             base_url: None,
             vertex_project,
             vertex_location: default_vertex_location(),
+            cache_enabled: true,
+            cache_ttl_days: default_llm_cache_ttl_days(),
         }
     }
 }

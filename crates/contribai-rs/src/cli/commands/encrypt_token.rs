@@ -4,7 +4,6 @@ use console::style;
 use contribai::core::crypto::encrypt_token;
 use dialoguer::Password;
 
-use crate::cli::print_banner;
 
 pub fn run_encrypt_token(token: Option<&str>, passphrase: Option<&str>) -> anyhow::Result<()> {
     // Get token

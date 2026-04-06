@@ -1,6 +1,6 @@
 [package]
 name = "contribai"
-version = "5.11.0"
+version = "5.12.0"
 edition = "2021"
 authors = ["tang-vu <tang.vu@contribai.dev>"]
 description = "AI agent that autonomously contributes to open source projects on GitHub"
@@ -28,6 +28,8 @@ serde_yaml = "0.9"
 
 # Database
 rusqlite = { version = "0.31", features = ["bundled"] }
+r2d2 = "0.8"
+r2d2_sqlite = "0.24"
 
 # CLI
 clap = { version = "4", features = ["derive", "env"] }

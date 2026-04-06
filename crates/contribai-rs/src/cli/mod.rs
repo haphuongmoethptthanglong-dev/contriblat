@@ -12,12 +12,11 @@ pub mod wizard;
 
 // Re-export common helpers for command handlers
 pub use common::{
-    create_event_bus, create_github, create_llm, create_memory, load_config, parse_github_url,
+    create_github, create_llm, create_memory, load_config, parse_github_url,
     print_banner, print_config_summary, print_result,
 };
 
 use clap::{Parser, Subcommand};
-use colored::Colorize;
 
 /// ContribAI — AI agent that autonomously contributes to open source.
 ///
@@ -267,6 +266,16 @@ enum Commands {
         #[arg(long)]
         passphrase: Option<String>,
     },
+
+    /// Show LLM response cache statistics
+    CacheStats,
+
+    /// Clear the LLM response cache
+    CacheClear {
+        /// Skip confirmation prompt
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 impl Cli {
@@ -377,6 +386,10 @@ impl Cli {
             }
             Commands::EncryptToken { token, passphrase } => {
                 commands::encrypt_token::run_encrypt_token(token.as_deref(), passphrase.as_deref())
+            }
+            Commands::CacheStats => commands::cache_stats::run_cache_stats(self.config.as_deref()),
+            Commands::CacheClear { yes } => {
+                commands::cache_clear::run_cache_clear(self.config.as_deref(), yes)
             }
             Commands::Init { output } => {
                 commands::init::run_init(output.as_deref(), output.clone())

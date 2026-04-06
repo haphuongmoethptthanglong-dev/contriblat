@@ -2,7 +2,7 @@
 
 use colored::Colorize;
 
-use crate::cli::{create_github, create_llm, create_memory, load_config, print_banner};
+use crate::cli::{load_config, print_banner};
 
 pub async fn run_schedule(config_path: Option<&str>, cron: String) -> anyhow::Result<()> {
     print_banner();

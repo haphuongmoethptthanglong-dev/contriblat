@@ -1,6 +1,7 @@
 //! LLM provider abstraction with multi-provider support.
 
 pub mod agents;
+pub mod cache;
 pub mod context;
 pub mod formatter;
 pub mod models;

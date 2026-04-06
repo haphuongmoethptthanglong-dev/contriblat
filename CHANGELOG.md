@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.12.0] - 2026-04-06
+
+### Added
+- **LLM response cache**: Content-addressable SHA-256 cache for `complete()` calls. Identical prompts return cached responses, skipping the API. Configurable TTL (default: 7 days) via `llm.cache_enabled` and `llm.cache_ttl_days`.
+- **Parallel file fetching**: Analyzer now fetches file contents concurrently (10 concurrent requests via semaphore), reducing analysis time by ~60% for large repos.
+- **`contribai cache-stats`**: Shows cache size, valid/expired entry counts, hit rate.
+- **`contribai cache-clear`**: Clears the LLM response cache with confirmation prompt.
+- **7 new tests** for cache get/put/clear/stats/prune.
+
+### Dependencies
+- Added `r2d2 0.8` and `r2d2_sqlite 0.24` for future connection pooling.
+
 ## [5.11.0] - 2026-04-06
 
 ### Added

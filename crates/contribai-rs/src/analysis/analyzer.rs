@@ -77,30 +77,42 @@ impl<'a> CodeAnalyzer<'a> {
             "Files selected for analysis"
         );
 
-        // 2. Fetch file contents for selected files
-        let mut file_contents: HashMap<String, String> = HashMap::new();
+        // 2. Fetch file contents for selected files — PARALLEL with semaphore
         let total_files = analyzable.len();
-        for (i, path) in analyzable.iter().enumerate() {
-            if (i + 1) % 50 == 0 || i + 1 == total_files {
-                info!(
-                    repo = %repo.full_name,
-                    progress = format!("{}/{}", i + 1, total_files),
-                    "📥 Fetching file contents"
-                );
-            }
-            match self
-                .github
-                .get_file_content(&repo.owner, &repo.name, path, None)
-                .await
-            {
-                Ok(content) => {
-                    file_contents.insert(path.clone(), content);
+        info!(
+            repo = %repo.full_name,
+            total = total_files,
+            concurrency = 10,
+            "📥 Fetching file contents in parallel"
+        );
+
+        let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(10));
+        let mut fetch_tasks = Vec::with_capacity(total_files);
+
+        for path in &analyzable {
+            let sem = semaphore.clone();
+            let owner = repo.owner.clone();
+            let name = repo.name.clone();
+            let path_clone = path.clone();
+            let github = &self.github;
+
+            fetch_tasks.push(async move {
+                let _permit = sem.acquire().await.unwrap();
+                match github
+                    .get_file_content(&owner, &name, &path_clone, None)
+                    .await
+                {
+                    Ok(content) => Some((path_clone, content)),
+                    Err(e) => {
+                        debug!(path = path_clone, error = %e, "Skipping file");
+                        None
+                    }
                 }
-                Err(e) => {
-                    debug!(path = path, error = %e, "Skipping file");
-                }
-            }
+            });
         }
+
+        let results = futures::future::join_all(fetch_tasks).await;
+        let file_contents: HashMap<String, String> = results.into_iter().flatten().collect();
 
         // 3. AST analysis (tree-sitter) — NEW
         let mut all_symbols: Vec<Symbol> = Vec::new();
