@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.11.0] - 2026-04-06
+
+### Added
+- **CLI refactored**: `cli/mod.rs` reduced from 3,396 lines → **523 lines** (85% reduction). All 26 command handlers extracted into `cli/commands/` directory, shared utilities in `cli/common.rs`.
+- **Magic numbers extracted** to config fields (`SandboxConfig.mode`, `require_validation`).
+- **Expanded local validators**: JavaScript/TypeScript, Go, Java syntax checks added.
+
+### Refactored
+- `cli/mod.rs`: 3,396 → 523 lines
+- Each command handler in its own file under `cli/commands/`
+- Shared helpers (`load_config`, `create_github`, `create_llm`, `create_memory`, `print_banner`, `print_result`, `parse_github_url`) in `cli/common.rs`
+- All command handlers re-exported via `pub use common::`
+
 ## [5.10.0] - 2026-04-06
 
 ### Added
