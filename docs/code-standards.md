@@ -1,6 +1,6 @@
 # Code Standards & Development Guidelines
 
-**Version:** 5.5.0 | **Language:** Rust 2021 | **Status:** Active
+**Version:** 5.8.1 | **Language:** Rust 2021 | **Status:** Active
 
 ---
 
@@ -12,7 +12,7 @@
 | **Style** | rustfmt (autoformat) + clippy (lint) |
 | **Types** | serde structs for data, strong typing for functions |
 | **Async** | All I/O operations use Tokio async |
-| **Testing** | cargo test, 355+ tests, co-located in source files |
+| **Testing** | cargo test, 418 tests, co-located in source files |
 | **Database** | SQLite via rusqlite (sync, wrapped with spawn_blocking) |
 | **Errors** | thiserror enums from `core::error` |
 | **Config** | serde_yaml + serde Deserialize structs |
@@ -414,7 +414,7 @@ cargo test -- --nocapture
 cargo test test_quality_threshold
 ```
 
-**Test Count:** 355 tests across 65 source files
+**Test Count:** 418 tests across 67 source files
 
 ---
 
@@ -576,4 +576,4 @@ let token = std::env::var("CONTRIBAI_GITHUB_TOKEN")
 
 - **Created:** 2026-03-28
 - **Last Updated:** 2026-04-04
-- **Version:** 5.5.0 (355 tests, 65 files, watchlist + dream memory + risk classification)
+- **Version:** 5.8.1 (418 tests, 67 files, cross-file imports, outcome-aware scoring, closed-PR analysis)

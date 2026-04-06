@@ -1,6 +1,6 @@
 # System Architecture
 
-**Version:** 5.8.0 | **Language:** Rust | **Last Updated:** 2026-04-05
+**Version:** 5.8.1 | **Language:** Rust | **Last Updated:** 2026-04-05
 
 ---
 
@@ -8,7 +8,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ContribAI Pipeline (v5.8.0 Rust)             │
+│                    ContribAI Pipeline (v5.8.1 Rust)             │
 └─────────────────────────────────────────────────────────────────┘
 
 Input: GitHub Repository (URL or discovery)
@@ -56,7 +56,7 @@ Input: GitHub Repository (URL or discovery)
 │ ├─ For each finding:                                           │
 │ │  ├─ LLM generates code fix (with retry on failure)           │
 │ │  ├─ Self-review: LLM validates own fix                       │
-│ │  ├─ Quality scoring: 7-check gate (correctness, style, etc.) │
+│ │  ├─ Quality scoring: 8-check gate (7 code + 1 outcome history)│
 │ │  ├─ Risk classification: Low/Medium/High for auto-submit     │
 │ │  ├─ Syntax validation (balanced brackets, no-op detection)   │
 │ │  ├─ Fuzzy matching for duplicate detection                   │
@@ -83,6 +83,7 @@ Input: GitHub Repository (URL or discovery)
 │ ├─ Notification dispatch (Slack, Discord, Telegram)            │
 │ ├─ Memory update (record outcomes, dream consolidation)        │
 │ ├─ PR Patrol monitoring (async, background, conversation-aware)│
+│ ├─ Closed-PR failure analysis (review + CI feedback → memory)  │
 │ └─ CI status tracking (auto-close 404 PRs on failure)          │
 └────────────────────────┬────────────────────────────────────────┘
    ▼
@@ -493,4 +494,4 @@ pub enum ContribAIError {
 
 - **Created:** 2026-03-28
 - **Last Updated:** 2026-04-04
-- **Version:** 5.5.0 (Multi-file PRs, Issue Solver, Conversation Memory, Dream Profile Wiring)
+- **Version:** 5.8.1 (Closed-PR analysis, outcome-aware scoring, cross-file imports, 418 tests)

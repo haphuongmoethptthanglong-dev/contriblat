@@ -11,7 +11,7 @@ It discovers repos, analyzes code, generates fixes, and submits pull requests �
 **It is NOT** a library/SDK, web app, or CLI tool intended for end-user consumption.
 It is itself an AI agent that operates on other GitHub repositories.
 
-> **v5.4.0 — Primary implementation is Rust** (`crates/contribai-rs/`).
+> **v5.8.1 — Primary implementation is Rust** (`crates/contribai-rs/`).
 > Python code is in `python/` (legacy v4.1.0, kept for reference).
 
 ## Tech Stack
@@ -28,25 +28,25 @@ It is itself an AI agent that operates on other GitHub repositories.
 | TUI | ratatui + crossterm |
 | CLI | clap v4 (derive) + dialoguer + colored |
 | AST | tree-sitter (13 languages: Python, JS, TS, Go, Rust, Java, C, C++, Ruby, PHP, C#, HTML, CSS) |
-| Tests | 335+ tests (mockall, wiremock, tokio-test) |
+| Tests | 418 tests (mockall, wiremock, tokio-test) |
 | Lint | clippy + ruff (Python legacy) |
 
 ## Project Structure
 
 ```
 ContribAI/
-├── crates/contribai-rs/        ← PRIMARY: Rust v5.4.0
+├── crates/contribai-rs/        ← PRIMARY: Rust v5.8.1
 │   ├── src/
 │   │   ├── main.rs             entry point
 │   │   ├── lib.rs              library root
 │   │   ├── cli/
-│   │   │   ├── mod.rs          22 commands + interactive menu
+│   │   │   ├── mod.rs          40+ commands + interactive menu
 │   │   │   ├── tui.rs          ratatui TUI (interactive command)
 │   │   │   ├── wizard.rs       setup wizard
 │   │   │   └── config_editor.rs get/set/list config
 │   │   ├── core/
 │   │   │   ├── config.rs       ContribAIConfig (serde_yaml)
-│   │   │   └── events.rs       15 typed events + JSONL log
+│   │   │   └── events.rs       18 typed events + JSONL log
 │   │   ├── github/
 │   │   │   ├── client.rs       REST + GraphQL client
 │   │   │   └── discovery.rs    repo search
@@ -74,8 +74,8 @@ ContribAI/
 │   │   ├── web/mod.rs          axum dashboard API
 │   │   ├── sandbox/sandbox.rs  Docker + ast fallback
 │   │   └── tools/protocol.rs  tool interface
-│   ├── Cargo.toml              v5.4.0
-│   └── tests/                 335+ Rust tests
+│   ├── Cargo.toml              v5.8.1
+│   └── tests/                 418 Rust tests
 │
 ├── python/                     LEGACY Python v4.1.0
 │   ├── contribai/              Python package (importable as 'contribai')
@@ -86,7 +86,7 @@ ContribAI/
 └── config.yaml.template        shared config template
 ```
 
-## Architecture (v5.4.0)
+## Architecture (v5.8.1)
 
 ### Core Pipeline
 ```
@@ -94,7 +94,7 @@ CLI → Pipeline → Middleware Chain → Analysis → Generation → PR → CI 
 ```
 
 ### Key Patterns
-1. **CLI (23 commands)** — clap derive + dialoguer menu (`cli/mod.rs`)
+1. **CLI (40+ commands)** — clap derive + dialoguer menu (`cli/mod.rs`)
 2. **Interactive TUI** — ratatui 4-tab UI: Dashboard/PRs/Repos/Actions (`cli/tui.rs`)
 3. **Middleware Chain** — 5 ordered middlewares (`orchestrator/pipeline.rs`)
 4. **Progressive Skills** — 17 analysis skills loaded on-demand (`analysis/skills.rs`)
@@ -103,13 +103,16 @@ CLI → Pipeline → Middleware Chain → Analysis → Generation → PR → CI 
 7. **Outcome Learning** — Tracks PR outcomes per-repo (`orchestrator/memory.rs`)
 8. **Context Compression** — LLM-driven compression (`analysis/context_compressor.rs`)
 9. **MCP Server** — 21 tools via stdio for Claude Desktop (`mcp/server.rs`)
-10. **Event Bus** — 15 typed events + JSONL logging (`core/events.rs`)
+10. **Event Bus** — 18 typed events + JSONL logging (`core/events.rs`)
 11. **Working Memory** — Auto-load/save per repo, 72h TTL (`orchestrator/memory.rs`)
 12. **Sandbox** — Docker validation + local fallback (`sandbox/sandbox.rs`)
 13. **Web Dashboard** — axum REST API (`web/mod.rs`)
 14. **GraphQL** — GitHub GraphQL alongside REST v3 (`github/client.rs`)
 15. **Dream System** — Background memory consolidation into repo profiles (`orchestrator/memory.rs`)
 16. **Risk Classification** — LOW/MEDIUM/HIGH change risk gating (`generator/risk.rs`)
+17. **Cross-file Import Resolution** — 5-language 1-hop import resolution (`analysis/ast_intel.rs`)
+18. **Outcome-Aware Scoring** — 8-check quality gate including repo outcome history (`generator/scorer.rs`)
+19. **Closed-PR Analysis** — Patrol fetches review feedback for rejected PRs (`pr/patrol.rs`)
 
 ## Code Conventions (Rust)
 
@@ -176,7 +179,7 @@ async fn run_my_command(arg: &str, config_path: Option<&str>) -> anyhow::Result<
 }
 ```
 
-## CLI Commands (23 total)
+## CLI Commands (40+ total)
 
 | Command | Handler | Description |
 |---------|---------|-------------|
@@ -203,12 +206,13 @@ async fn run_my_command(arg: &str, config_path: Option<&str>) -> anyhow::Result<
 | `login` | `run_login_check()` | Interactive auth & provider config |
 | `dream` | `run_dream()` | Memory consolidation into repo profiles |
 | `config-get/set/list` | `config_editor::*` | YAML config editor |
+| `doctor` | `run_doctor()` | System health diagnostics |
 
 ## Testing
 
 ```bash
 # From project root (Rust workspace):
-cargo test                          # 353+ tests
+cargo test                          # 418 tests
 cargo test -- --nocapture           # with stdout
 cargo test cli::                    # CLI tests only
 cargo build --release               # production binary

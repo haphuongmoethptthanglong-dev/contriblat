@@ -169,7 +169,7 @@ A: By audience (product, developer, ops) and topic depth. Each doc is self-conta
 A: Yes, extensive examples in Code Standards, System Architecture, and Deployment Guide.
 
 **Q: Is documentation up-to-date with code?**
-A: Yes, verified against v5.5.0 release. Updated on each release.
+A: Yes, verified against v5.8.1 release. Updated on each release.
 
 **Q: Can I propose documentation improvements?**
 A: Yes, open a GitHub issue or discussion with `[DOCS]` prefix.

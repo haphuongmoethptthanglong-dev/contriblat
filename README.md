@@ -5,9 +5,9 @@
 **Autonomous AI agent that discovers, analyzes, and submits<br>Pull Requests to open source projects on GitHub.**
 
 [![Rust](https://img.shields.io/badge/Rust-1.75+-f74c00?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![Version](https://img.shields.io/badge/v5.8.0-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/tang-vu/ContribAI/releases)
+[![Version](https://img.shields.io/badge/v5.8.1-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/tang-vu/ContribAI/releases)
 [![License](https://img.shields.io/badge/AGPL--3.0-green?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![Tests](https://img.shields.io/badge/413_tests-passing-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
+[![Tests](https://img.shields.io/badge/418_tests-passing-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
 [![PRs Merged](https://img.shields.io/badge/10_PRs-merged-blueviolet?style=for-the-badge&logo=git&logoColor=white)](HALL_OF_FAME.md)
 
 <br>
@@ -196,7 +196,7 @@ See [`config.yaml.template`](config.yaml.template) for all options.
 
 ## 📖 Commands
 
-ContribAI ships with **22 commands** accessible via CLI or interactive menu.
+ContribAI ships with **40+ commands** accessible via CLI or interactive menu.
 
 <details>
 <summary>🔥 <strong>Hunt & Contribute</strong></summary>
@@ -260,8 +260,8 @@ contribai notify-test                 # Test Slack/Discord/Telegram
 
 ```
 ContribAI/
-├── crates/contribai-rs/src/        ← Rust v5.5.0 (primary)
-│   ├── cli/                        22 commands + ratatui TUI
+├── crates/contribai-rs/src/        ← Rust v5.8.1 (primary)
+│   ├── cli/                        40+ commands + ratatui TUI
 │   ├── core/                       Config, events, error types
 │   ├── github/                     REST v3 + GraphQL client
 │   ├── analysis/                   13-lang AST + 17 skills
@@ -292,7 +292,7 @@ ContribAI/
 | Web | axum 0.7 + tower-http |
 | TUI | ratatui + crossterm |
 | CLI | clap v4 + dialoguer + colored |
-| Tests | 388 tests (mockall, wiremock, tokio-test) |
+| Tests | 418 tests (mockall, wiremock, tokio-test) |
 
 </details>
 
@@ -303,7 +303,7 @@ See [`docs/system-architecture.md`](docs/system-architecture.md) for the full de
 ## 🧪 Testing
 
 ```bash
-cargo test                  # Run all 388 tests
+cargo test                  # Run all 418 tests
 cargo test -- --nocapture   # With stdout output
 cargo test ast_intel        # AST module tests only
 cargo clippy                # Lint check

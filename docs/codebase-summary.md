@@ -1,6 +1,6 @@
 # ContribAI Codebase Summary
 
-**Version:** 5.8.0 | **Language:** Rust | **Total LOC:** ~29,200 | **Files:** 67 .rs | **Tests:** 413
+**Version:** 5.8.1 | **Language:** Rust | **Total LOC:** ~29,577 | **Files:** 67 .rs | **Tests:** 418
 
 ---
 
@@ -40,9 +40,9 @@ crates/contribai-rs/src/
 | **llm** | Multi-provider routing, token budgeting, formatting, task routing | `LlmProvider`, `TaskRouter`, `ContextManager`, `Formatter` | 7 |
 | **github** | Async GitHub client (REST+GraphQL), repo discovery, guideline parsing | `GitHubClient`, `RepoDiscovery`, `GuidelineParser` | 4 |
 | **analysis** | Multi-strategy analysis, 17 skills, triage, AST intel, repo map, language rules | `CodeAnalyzer`, `AnalysisSkill`, `TriageEngine`, `AstIntel`, `RepoMap` | 10 |
-| **generator** | LLM-powered fix generation, self-review, quality scoring, risk classification, validation | `ContributionGenerator`, `QualityScorer`, `SelfReview`, `RiskClassifier` | 8 |
+| **generator** | LLM-powered fix generation, self-review, 8-check quality scoring (incl. outcome history), risk classification, validation | `ContributionGenerator`, `QualityScorer`, `SelfReview`, `RiskClassifier` | 8 |
 | **orchestrator** | Pipeline coordination, SQLite memory, dream memory consolidation, review gate | `Pipeline`, `Memory`, `DreamMemory`, `ReviewGate` | 4 |
-| **pr** | PR creation, patrol monitoring, conversation-aware feedback | `PRManager`, `PRPatrol` | 3 |
+| **pr** | PR creation, patrol monitoring, conversation-aware feedback, closed-PR failure analysis | `PRManager`, `PRPatrol` | 3 |
 | **issues** | Issue discovery and solving | `IssueSolver` | 2 |
 | **agents** | Sub-agent registry with parallel execution | `SubAgentRegistry` | 2 |
 | **tools** | Tool protocol (MCP-inspired) | `Tool`, `ToolResult` | 1 |
@@ -205,7 +205,7 @@ SchedulerStarted | WebhookReceived
 | **Logging** | tracing, tracing-subscriber |
 | **Code Parsing** | tree-sitter (13 language grammars) |
 | **Crypto** | hmac, sha2, hex (webhook verification) |
-| **Testing** | cargo test (built-in), 413 tests |
+| **Testing** | cargo test (built-in), 418 tests |
 | **Linting** | clippy |
 | **Formatting** | rustfmt |
 
@@ -305,7 +305,7 @@ mod tests {
 }
 ```
 
-**Test Coverage:** 413 tests across 67 source files (includes 9 integration tests for hunt/patrol)
+**Test Coverage:** 418 tests across 67 source files (includes 45 integration tests for hunt/patrol/pipeline)
 **Test Command:** `cargo test` (all tests), `cargo test <module>` (specific)
 
 ---
@@ -323,4 +323,4 @@ mod tests {
 
 - **Created:** 2026-03-28
 - **Last Updated:** 2026-04-05
-- **Version:** 5.8.0 (67 files, 413 tests, cross-file import resolution, hunt/patrol integration tests)
+- **Version:** 5.8.1 (67 files, 418 tests, closed-PR analysis, outcome-aware scoring, cross-file imports)
