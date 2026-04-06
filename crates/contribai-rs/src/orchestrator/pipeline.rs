@@ -724,21 +724,49 @@ impl<'a> ContribPipeline<'a> {
     }
 
     /// Check dream gates and run consolidation if met (non-blocking).
+    ///
+    /// Uses a file-based advisory lock (`DreamLock`) to prevent concurrent
+    /// dream consolidation — eliminates the TOCTOU race from the old
+    /// string-based DB lock.
     pub fn maybe_dream(&self) {
+        // Gate 1: Check time/session thresholds (fast path)
         match self.memory.should_dream() {
             Ok(true) => {
-                info!("🌙 Dream gates passed — running memory consolidation");
-                match self.memory.run_dream() {
-                    Ok(r) => info!(
-                        repos = r.repos_profiled,
-                        pruned = r.entries_pruned,
-                        "🌙 Dream complete"
-                    ),
-                    Err(e) => warn!("Dream consolidation failed: {}", e),
+                info!("🌙 Dream gates passed — acquiring lock");
+            }
+            Ok(false) => {
+                debug!("Dream gates not yet met");
+                return;
+            }
+            Err(e) => {
+                debug!("Dream gate check failed: {}", e);
+                return;
+            }
+        }
+
+        // Gate 2: Atomic file lock — only one instance can hold this
+        let db_path = self.config.storage.resolved_db_path();
+        match crate::orchestrator::dream_lock::DreamLock::new(&db_path) {
+            Ok(lock) => {
+                if lock.try_acquire().is_some() {
+                    // We hold the lock — run dream consolidation
+                    info!("🌙 Dream lock acquired — running memory consolidation");
+                    match self.memory.run_dream() {
+                        Ok(r) => info!(
+                            repos = r.repos_profiled,
+                            pruned = r.entries_pruned,
+                            "🌙 Dream complete"
+                        ),
+                        Err(e) => warn!("Dream consolidation failed: {}", e),
+                    }
+                    // Lock released when lock drops
+                } else {
+                    info!("🌙 Another instance holds dream lock — skipping");
                 }
             }
-            Ok(false) => debug!("Dream gates not yet met"),
-            Err(e) => debug!("Dream gate check failed: {}", e),
+            Err(e) => {
+                debug!("Failed to create dream lock: {}", e);
+            }
         }
     }
 

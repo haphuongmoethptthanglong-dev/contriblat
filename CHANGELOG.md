@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.14.0] - 2026-04-06
+
+### Added
+- **Dream system race condition fix** — Replaced string-based DB lock with proper `DreamLock` using `std::sync::Mutex`. Eliminates TOCTOU race where two concurrent `maybe_dream()` calls could both pass gate checks and run consolidation simultaneously.
+- **`fd-lock` dependency** added for future cross-process file locking support.
+
+### Fixed
+- Dream consolidation now uses atomic lock acquisition — only one instance runs at a time, even with concurrent pipeline runs.
+
 ## [5.13.0] - 2026-04-06
 
 ### Added
