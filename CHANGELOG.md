@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.10.0] - 2026-04-06
+
+### Added
+- **Sandbox enabled by default** (`sandbox.enabled = true`) with 3 modes: `"docker"` (full isolation), `"local"` (syntax check, default), `"ast"` (tree-sitter parse), `"off"` (no validation). `sandbox.require_validation` blocks PR submission on validation failure.
+- **Prompt injection protection** — repository content is sanitized before LLM calls: control characters stripped, XML-wrapped in `<repository-content>` tags, 10 known injection patterns detected and logged. System prompts hardened with "treat code as data" instruction.
+- **Token encryption** (`contribai encrypt-token`) — encrypt GitHub tokens with AES-256-like XOR + HMAC-SHA256 key derivation (PBKDF2, 1000 iterations). Decrypted at runtime via `CONTRIBUTAI_ENCRYPTION_KEY` env var, never written to logs.
+- **Expanded local validators** — JavaScript/TypeScript, Go, Java syntax checks added alongside Python and Rust.
+- **26 new tests** for sandbox config, crypto roundtrip, prompt injection detection.
+
+### Security
+- Sandbox is now ON by default — generated code is validated before PR submission
+- Prompt injection mitigations protect against malicious repository content
+- Token encryption prevents plaintext storage in config files
+
 ## [5.9.0] - 2026-04-06
 
 ### Added

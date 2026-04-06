@@ -9,6 +9,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 use tracing::{info, warn};
 
+use crate::core::prompt_sanitize::{hardened_system_prompt, sanitize_for_prompt, SanitizeResult};
 use crate::core::safe_truncate;
 
 static RE_SLUG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^a-z0-9]+").unwrap());
@@ -162,7 +163,7 @@ impl<'a> ContributionGenerator<'a> {
 
     /// Build system prompt with repo context and style guidance.
     fn build_system_prompt(&self, context: &RepoContext) -> String {
-        let mut prompt = String::from(
+        let base_prompt = String::from(
             "You are a senior open-source contributor who writes production-ready \
              code. You understand that PRs are judged by maintainers who value \
              minimal, focused, and convention-matching changes.\n\n\
@@ -184,11 +185,18 @@ impl<'a> ContributionGenerator<'a> {
              - Is the change obviously correct with no side effects?\n",
         );
 
+        let mut prompt = hardened_system_prompt(&base_prompt);
+
         if let Some(style) = &context.coding_style {
+            // Sanitize coding style before embedding
+            let SanitizeResult {
+                content: safe_style,
+                ..
+            } = sanitize_for_prompt(style);
             prompt.push_str(&format!(
                 "\nCODEBASE STYLE:\n{}\n\
                  You MUST match these conventions exactly.\n",
-                style
+                safe_style
             ));
         }
 
@@ -303,7 +311,18 @@ impl<'a> ContributionGenerator<'a> {
         prompt.push_str("\n## Output Format\nReturn your changes as a JSON object.\n\n");
 
         if !current_content.is_empty() {
-            let snippet = safe_truncate(current_content, 6000);
+            let raw_snippet = safe_truncate(current_content, 6000);
+            let SanitizeResult {
+                content: snippet,
+                injection_detected,
+                ..
+            } = sanitize_for_prompt(raw_snippet);
+            if injection_detected {
+                warn!(
+                    file = finding.file_path,
+                    "⚠️ Prompt injection in file content — sanitized before LLM"
+                );
+            }
             prompt.push_str(&format!(
                 "## Current File Content ({})\n```\n{}\n```\n\n",
                 finding.file_path, snippet

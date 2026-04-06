@@ -97,8 +97,27 @@ impl ContribAIConfig {
     /// - GitHub token: `GITHUB_TOKEN` env → `gh auth token` CLI
     /// - Gemini key:   `GEMINI_API_KEY` env
     /// - Vertex project: `GOOGLE_CLOUD_PROJECT` env → `gcloud config get-value project`
+    /// - Encrypted token: decrypt with CONTRIBUTAI_ENCRYPTION_KEY env or prompt
     fn resolve_secrets(&mut self) {
-        // GitHub token
+        // GitHub token — try encrypted first, then plain, then env/CLI
+        if let Some(ref encrypted) = self.github.token_encrypted {
+            if crate::core::crypto::is_encrypted(encrypted) {
+                let passphrase = std::env::var("CONTRIBUTAI_ENCRYPTION_KEY").unwrap_or_default();
+                if !passphrase.is_empty() {
+                    match crate::core::crypto::decrypt_token(encrypted, &passphrase) {
+                        Ok(token) => {
+                            self.github.token = token;
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to decrypt GitHub token: {}", e);
+                        }
+                    }
+                } else {
+                    tracing::warn!("Encrypted token found but CONTRIBUTAI_ENCRYPTION_KEY not set");
+                }
+            }
+        }
+
         if self.github.token.is_empty() {
             self.github.token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
         }
@@ -135,6 +154,10 @@ pub struct GitHubConfig {
     /// GitHub personal access token (from env `GITHUB_TOKEN`).
     #[serde(default)]
     pub token: String,
+    /// Encrypted token (AES-256-GCM). If set, takes priority over `token`.
+    /// Encrypted format: `enc:<base64>`
+    #[serde(default)]
+    pub token_encrypted: Option<String>,
     #[serde(default = "default_rate_limit_buffer")]
     pub rate_limit_buffer: u32,
     #[serde(default = "default_max_prs_per_day")]
@@ -169,6 +192,7 @@ impl Default for GitHubConfig {
         };
         Self {
             token,
+            token_encrypted: None,
             rate_limit_buffer: default_rate_limit_buffer(),
             max_prs_per_day: default_max_prs_per_day(),
         }
@@ -676,15 +700,28 @@ pub struct NotificationConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SandboxConfig {
     /// Whether sandboxed code execution is enabled.
-    #[serde(default)]
+    #[serde(default = "default_sandbox_enabled")]
     pub enabled: bool,
+    /// Sandbox mode: "docker" (full isolation), "local" (syntax check only),
+    /// "ast" (tree-sitter parse), "off" (no validation).
+    #[serde(default = "default_sandbox_mode")]
+    pub mode: String,
     /// Override Docker image for the sandbox container.
     pub docker_image: Option<String>,
     /// Sandbox execution timeout in seconds.
     #[serde(default = "default_sandbox_timeout")]
     pub timeout_seconds: u64,
+    /// Block PR submission if sandbox validation fails.
+    #[serde(default = "default_true")]
+    pub require_validation: bool,
 }
 
+fn default_sandbox_enabled() -> bool {
+    true
+}
+fn default_sandbox_mode() -> String {
+    "local".to_string()
+}
 fn default_sandbox_timeout() -> u64 {
     30
 }
@@ -692,9 +729,11 @@ fn default_sandbox_timeout() -> u64 {
 impl Default for SandboxConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: default_sandbox_enabled(),
+            mode: default_sandbox_mode(),
             docker_image: None,
             timeout_seconds: default_sandbox_timeout(),
+            require_validation: true,
         }
     }
 }
@@ -833,16 +872,23 @@ analysis:
     #[test]
     fn test_sandbox_config_defaults() {
         let s = SandboxConfig::default();
-        assert!(!s.enabled);
+        assert!(s.enabled, "sandbox should be enabled by default");
+        assert_eq!(s.mode, "local");
         assert!(s.docker_image.is_none());
         assert_eq!(s.timeout_seconds, 30);
+        assert!(
+            s.require_validation,
+            "require_validation should be true by default"
+        );
     }
 
     #[test]
     fn test_sandbox_config_deser_empty() {
         let s: SandboxConfig = serde_json::from_str("{}").unwrap();
-        assert!(!s.enabled);
+        assert!(s.enabled, "sandbox should be enabled by default");
+        assert_eq!(s.mode, "local");
         assert_eq!(s.timeout_seconds, 30);
+        assert!(s.require_validation);
     }
 
     #[test]
@@ -852,6 +898,23 @@ analysis:
         assert!(s.enabled);
         assert_eq!(s.docker_image.as_deref(), Some("rust:1.78"));
         assert_eq!(s.timeout_seconds, 30); // default preserved
+        assert!(s.require_validation);
+    }
+
+    #[test]
+    fn test_sandbox_config_off_mode() {
+        let yaml = "enabled: true\nmode: \"off\"";
+        let s: SandboxConfig = serde_yaml::from_str(yaml).unwrap();
+        assert!(s.enabled);
+        assert_eq!(s.mode, "off");
+    }
+
+    #[test]
+    fn test_sandbox_config_ast_mode() {
+        let yaml = "mode: \"ast\"";
+        let s: SandboxConfig = serde_yaml::from_str(yaml).unwrap();
+        assert!(s.enabled); // default preserved
+        assert_eq!(s.mode, "ast");
     }
 
     // -------------------------------------------------------------------------
@@ -892,9 +955,13 @@ analysis:
         assert_eq!(cfg.quotas.github_daily, 1000);
         // notifications
         assert!(cfg.notifications.slack_webhook.is_none());
-        // sandbox
-        assert!(!cfg.sandbox.enabled);
+        // sandbox — enabled by default with local mode
+        assert!(cfg.sandbox.enabled);
+        assert_eq!(cfg.sandbox.mode, "local");
         assert_eq!(cfg.sandbox.timeout_seconds, 30);
+        assert!(cfg.sandbox.require_validation);
+        // circuit breaker
+        assert_eq!(cfg.pipeline.circuit_breaker_failure_threshold, 5);
     }
 
     #[test]

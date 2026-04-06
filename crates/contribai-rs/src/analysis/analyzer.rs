@@ -19,6 +19,7 @@ use crate::core::error::Result;
 use crate::core::models::{
     AnalysisResult, ContributionType, Finding, Repository, Severity, Symbol,
 };
+use crate::core::prompt_sanitize::{hardened_system_prompt, sanitize_for_prompt, SanitizeResult};
 use crate::github::client::GitHubClient;
 use crate::llm::provider::LlmProvider;
 
@@ -263,18 +264,34 @@ impl<'a> CodeAnalyzer<'a> {
     /// Retries up to 3 times on transient errors (timeout, 429, 5xx).
     /// Does NOT retry on 400/401 (bad request, auth failure).
     async fn run_analyzer(&self, name: &str, context: &str) -> Result<Vec<Finding>> {
-        let system_prompt = format!(
+        // Sanitize context to prevent prompt injection
+        let SanitizeResult {
+            content: safe_context,
+            injection_detected,
+            detected_patterns,
+        } = sanitize_for_prompt(context);
+
+        if injection_detected {
+            warn!(
+                analyzer = name,
+                patterns = ?detected_patterns,
+                "⚠️ Prompt injection patterns detected — content sanitized"
+            );
+        }
+
+        let base_system_prompt = format!(
             "You are an expert {} code analyzer for open source contributions. \
              Analyze the code and report findings as JSON array. \
              Each finding must have: title, description, severity (critical/high/medium/low), \
              file_path, line_start, line_end, suggestion, confidence (0-1).",
             name
         );
+        let system_prompt = hardened_system_prompt(&base_system_prompt);
 
         let prompt = format!(
             "Analyze this repository for {} issues:\n\n{}\n\n\
              Respond with a JSON array of findings. Be specific and actionable.",
-            name, context
+            name, safe_context
         );
 
         // Retry with exponential backoff: 2s → 4s → 8s (max 3 attempts)
