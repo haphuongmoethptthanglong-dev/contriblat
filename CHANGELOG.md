@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.17.0] - 2026-04-06
+
+### Added
+- **Sprint 1-7 complete** — Full release with all improvements:
+  - Circuit breaker + E2E LLM parser tests + analyzer retry
+  - Sandbox default + prompt injection protection + token encryption
+  - CLI refactored (3396 → 523 lines)
+  - LLM response cache + parallel file fetch
+  - 67 new tests (AST 13 langs, middleware, router, MCP, notifications)
+  - Dream race fix + Web TLS
+  - ARCHITECTURE.md + RUNBOOK.md + /metrics endpoint
+
+### Stats
+- Tests: 418 → 575 (+157)
+- CLI: 3396 → 523 lines (-85%)
+- 0 clippy warnings, 0 security advisories
+
 ## [5.16.0] - 2026-04-06
 
 ### Added
