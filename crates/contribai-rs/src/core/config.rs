@@ -250,6 +250,10 @@ pub struct LlmConfig {
     /// Cache TTL in days (default: 7).
     #[serde(default = "default_llm_cache_ttl_days")]
     pub cache_ttl_days: u64,
+    /// Small/cheap model for lightweight tasks (PR titles, commit messages,
+    /// context compaction). Falls back to `model` if not set.
+    #[serde(default)]
+    pub small_model: Option<String>,
     /// ── GitHub Copilot Integration ──
     /// Set to true to use Copilot token exchange instead of API key.
     #[serde(default)]
@@ -319,6 +323,7 @@ impl Default for LlmConfig {
             vertex_location: default_vertex_location(),
             cache_enabled: true,
             cache_ttl_days: default_llm_cache_ttl_days(),
+            small_model: None,
             copilot: false,
             fallback: vec![],
         }

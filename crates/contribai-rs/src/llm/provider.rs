@@ -1002,8 +1002,50 @@ impl LlmProvider for FallbackProvider {
 
 /// Create an LLM provider instance from config, wrapped with retry + cache logic.
 /// If the primary provider fails, falls back through the configured fallback chain.
+/// Also creates a separate small model provider for lightweight tasks.
 pub fn create_llm_provider(config: &LlmConfig) -> Result<Box<dyn LlmProvider>> {
+    create_llm_provider_with_config(config, None)
+}
+
+/// Create LLM providers with optional small model override.
+/// Returns (primary_provider, small_model_provider).
+pub fn create_llm_providers(config: &LlmConfig) -> Result<(Box<dyn LlmProvider>, Box<dyn LlmProvider>)> {
+    use super::retry::RetryingProvider;
+    
+    let primary = create_llm_provider_with_config(config, None)?;
+    
+    let small_config = if let Some(ref small_model) = config.small_model {
+        let mut small = config.clone();
+        // Parse small_model as "provider/model" or just use model name with same provider
+        if small_model.contains('/') {
+            let parts: Vec<&str> = small_model.splitn(2, '/').collect();
+            small.provider = parts[0].to_string();
+            small.model = parts[1].to_string();
+        } else {
+            small.model = small_model.clone();
+        }
+        small.cache_enabled = false; // Don't double-cache
+        small.fallback = vec![];
+        small
+    } else {
+        config.clone()
+    };
+    
+    let small = create_single_provider(&small_config)
+        .map(|p| Box::new(RetryingProvider::with_config(p, 2, 1000)) as Box<dyn LlmProvider>)
+        .unwrap_or_else(|_| {
+            tracing::warn!("Small model init failed, falling back to primary");
+            create_single_provider(config)
+                .map(|p| Box::new(RetryingProvider::with_config(p, 2, 1000)) as Box<dyn LlmProvider>)
+                .expect("Primary provider must be valid")
+        });
+    
+    Ok((primary, small))
+}
+
+fn create_llm_provider_with_config(config: &LlmConfig, _small_model_override: Option<&str>) -> Result<Box<dyn LlmProvider>> {
     use super::cache::CachedLlmProvider;
+    use super::copilot::CopilotProvider;
     use super::retry::RetryingProvider;
 
     // Build primary provider
@@ -1100,6 +1142,7 @@ fn parse_provider_spec(spec: &str, base: &LlmConfig) -> LlmConfig {
         vertex_location: base.vertex_location.clone(),
         cache_enabled: false, // Cache is on outer layer
         cache_ttl_days: base.cache_ttl_days,
+        small_model: base.small_model.clone(),
         copilot: false,
         fallback: vec![],
     }
@@ -1151,6 +1194,7 @@ mod tests {
             fallback: vec![],
             cache_enabled: false,
             cache_ttl_days: 7,
+            small_model: None,
         };
         let result = create_llm_provider(&config);
         assert!(result.is_err());
@@ -1176,6 +1220,7 @@ mod tests {
             fallback: vec![],
             cache_enabled: false,
             cache_ttl_days: 7,
+            small_model: None,
         };
         let result = create_llm_provider(&config);
         assert!(result.is_ok());
@@ -1196,6 +1241,7 @@ mod tests {
             fallback: vec![],
             cache_enabled: false,
             cache_ttl_days: 7,
+            small_model: None,
         };
         let result = create_llm_provider(&config);
         assert!(result.is_ok());
@@ -1216,6 +1262,7 @@ mod tests {
             fallback: vec![],
             cache_enabled: false,
             cache_ttl_days: 7,
+            small_model: None,
         };
         let result = create_llm_provider(&config);
         assert!(result.is_ok());
@@ -1236,6 +1283,7 @@ mod tests {
             fallback: vec![],
             cache_enabled: false,
             cache_ttl_days: 7,
+            small_model: None,
         };
         let result = create_llm_provider(&config);
         assert!(result.is_ok());
@@ -1256,6 +1304,7 @@ mod tests {
             fallback: vec![],
             cache_enabled: false,
             cache_ttl_days: 7,
+            small_model: None,
         };
         let p = AnthropicProvider::new(&config).unwrap();
         assert_eq!(p.base_url, "https://api.anthropic.com/v1");
@@ -1276,6 +1325,7 @@ mod tests {
             fallback: vec![],
             cache_enabled: false,
             cache_ttl_days: 7,
+            small_model: None,
         };
         let p = AnthropicProvider::new(&config).unwrap();
         assert_eq!(p.base_url, "https://my-proxy.example.com/v1");
@@ -1295,6 +1345,7 @@ mod tests {
             vertex_location: "us-central1".into(),
             cache_enabled: false,
             cache_ttl_days: 7,
+            small_model: None,
             copilot: false,
             fallback: vec![],
         };

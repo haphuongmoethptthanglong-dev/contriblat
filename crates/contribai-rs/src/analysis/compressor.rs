@@ -1,9 +1,11 @@
 //! Context compressor for token-efficient LLM interactions.
 //!
 //! Port from Python `analysis/context_compressor.py`.
-//! Truncation-based compression to stay within token limits.
+//! Truncation-based compression to stay within token budgets.
+//! v5.19: Added auto-compaction and context budget tracking.
 
 use regex::Regex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tracing::debug;
 
 use crate::core::error::Result;
@@ -548,6 +550,163 @@ impl ContextCompressor {
 impl Default for ContextCompressor {
     fn default() -> Self {
         Self::new(30_000)
+    }
+}
+
+impl ContextCompressor {
+    // ── Auto-Compaction (v5.19) ────────────────────────────────────────────
+
+    /// Auto-compact context when it exceeds threshold. Returns summarized text.
+    pub async fn auto_compact<P: LlmProvider>(
+        &self,
+        context: &str,
+        llm: &P,
+        threshold: f64,
+    ) -> Result<String> {
+        let context_chars = context.len();
+        let threshold_chars = (self.max_chars as f64 * threshold) as usize;
+
+        if context_chars <= threshold_chars {
+            return Ok(context.to_string());
+        }
+
+        debug!(
+            context_chars,
+            threshold_chars,
+            max_chars = self.max_chars,
+            "Auto-compaction triggered"
+        );
+
+        let prompt = format!("{}{}", COMPRESSION_PROMPT, context);
+        let summary = llm
+            .complete(&prompt, Some(COMPRESSION_SYSTEM), Some(0.1), None)
+            .await?;
+
+        Ok(Self::parse_compaction_summary(&summary))
+    }
+
+    /// Parse compaction summary sections from LLM response.
+    fn parse_compaction_summary(response: &str) -> String {
+        let mut sections = std::collections::HashMap::new();
+        let mut current_section = String::new();
+        let mut current_content = String::new();
+
+        for line in response.lines() {
+            if line.starts_with("TASK_OVERVIEW:") {
+                if !current_section.is_empty() {
+                    sections.insert(current_section.clone(), current_content.trim().to_string());
+                }
+                current_section = "task_overview".to_string();
+                current_content = line
+                    .strip_prefix("TASK_OVERVIEW:")
+                    .unwrap_or("")
+                    .to_string();
+            } else if line.starts_with("CURRENT_STATE:") {
+                if !current_section.is_empty() {
+                    sections.insert(current_section.clone(), current_content.trim().to_string());
+                }
+                current_section = "current_state".to_string();
+                current_content = line
+                    .strip_prefix("CURRENT_STATE:")
+                    .unwrap_or("")
+                    .to_string();
+            } else if line.starts_with("IMPORTANT_DISCOVERIES:") {
+                if !current_section.is_empty() {
+                    sections.insert(current_section.clone(), current_content.trim().to_string());
+                }
+                current_section = "important_discoveries".to_string();
+                current_content = line
+                    .strip_prefix("IMPORTANT_DISCOVERIES:")
+                    .unwrap_or("")
+                    .to_string();
+            } else if line.starts_with("CONTEXT_TO_PRESERVE:") {
+                if !current_section.is_empty() {
+                    sections.insert(current_section.clone(), current_content.trim().to_string());
+                }
+                current_section = "context_to_preserve".to_string();
+                current_content = line
+                    .strip_prefix("CONTEXT_TO_PRESERVE:")
+                    .unwrap_or("")
+                    .to_string();
+            } else {
+                current_content.push('\n');
+                current_content.push_str(line);
+            }
+        }
+        if !current_section.is_empty() {
+            sections.insert(current_section, current_content.trim().to_string());
+        }
+
+        let task = sections
+            .get("task_overview")
+            .map(|s| s.as_str())
+            .unwrap_or("Analysis completed.");
+        let state = sections
+            .get("current_state")
+            .map(|s| s.as_str())
+            .unwrap_or("");
+        let discoveries = sections
+            .get("important_discoveries")
+            .map(|s| s.as_str())
+            .unwrap_or("");
+        let preserve = sections
+            .get("context_to_preserve")
+            .map(|s| s.as_str())
+            .unwrap_or("");
+
+        SUMMARY_TEMPLATE
+            .replace("{task_overview}", task)
+            .replace("{current_state}", state)
+            .replace("{important_discoveries}", discoveries)
+            .replace("{context_to_preserve}", preserve)
+    }
+}
+
+// ── Context Budget Tracker (v5.19) ─────────────────────────────────────────
+
+/// Tracks token usage across LLM calls for budget monitoring.
+pub struct ContextBudget {
+    /// Total tokens used in current session.
+    pub total_used: AtomicU64,
+    /// Maximum tokens allowed per session.
+    pub max_tokens: u64,
+}
+
+impl ContextBudget {
+    pub fn new(max_tokens: u64) -> Self {
+        Self {
+            total_used: AtomicU64::new(0),
+            max_tokens,
+        }
+    }
+
+    /// Record token usage.
+    pub fn record_usage(&self, tokens: u64) {
+        self.total_used.fetch_add(tokens, Ordering::Relaxed);
+    }
+
+    /// Get usage percentage (0.0-1.0).
+    pub fn usage_fraction(&self) -> f64 {
+        let used = self.total_used.load(Ordering::Relaxed) as f64;
+        (used / self.max_tokens as f64).min(1.0)
+    }
+
+    /// Get remaining tokens.
+    pub fn remaining(&self) -> u64 {
+        self.max_tokens
+            .saturating_sub(self.total_used.load(Ordering::Relaxed))
+    }
+
+    /// Check if usage exceeds threshold.
+    pub fn exceeds_threshold(&self, threshold: f64) -> bool {
+        self.usage_fraction() >= threshold
+    }
+
+    /// Get human-readable usage string.
+    pub fn usage_string(&self) -> String {
+        let used = self.total_used.load(Ordering::Relaxed);
+        let pct = (self.usage_fraction() * 100.0).round() as u64;
+        format!("{}/{} tokens ({}%)", used, self.max_tokens, pct)
     }
 }
 
