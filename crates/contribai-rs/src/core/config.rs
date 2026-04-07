@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 use super::error::{ContribError, Result};
+use super::permissions::PermissionConfig;
 
 /// Web server configuration (API auth + webhook).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -536,6 +537,9 @@ pub struct PipelineConfig {
     /// Agent mode: "build" (full PR flow) or "plan" (read-only analysis).
     #[serde(default = "default_agent_mode")]
     pub agent_mode: String,
+    /// Permission rules for file/shell operations.
+    #[serde(default)]
+    pub permissions: PermissionConfig,
     /// ── Circuit Breaker Configuration ──
     /// Number of consecutive LLM failures before opening the circuit.
     #[serde(default = "default_circuit_breaker_threshold")]
@@ -595,6 +599,7 @@ impl Default for PipelineConfig {
             require_bug_verification: true,
             skip_repos_with_open_pr: true,
             agent_mode: default_agent_mode(),
+            permissions: PermissionConfig::default(),
             circuit_breaker_failure_threshold: default_circuit_breaker_threshold(),
             circuit_breaker_success_threshold: default_circuit_breaker_success_threshold(),
             circuit_breaker_cooldown_secs: default_circuit_breaker_cooldown_secs(),

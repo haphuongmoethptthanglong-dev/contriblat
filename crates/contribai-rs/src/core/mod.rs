@@ -5,6 +5,7 @@ pub mod events;
 pub mod leaderboard;
 pub mod middleware;
 pub mod models;
+pub mod permissions;
 pub mod profiles;
 pub mod prompt_sanitize;
 pub mod quotas;
