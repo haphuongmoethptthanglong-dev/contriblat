@@ -28,3 +28,4 @@ pub mod target;
 pub mod templates;
 pub mod watchlist;
 pub mod web_server;
+pub mod undo;

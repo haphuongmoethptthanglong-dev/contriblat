@@ -280,6 +280,13 @@ enum Commands {
         #[arg(long)]
         yes: bool,
     },
+
+    /// Rollback last generated file changes
+    Undo {
+        /// Skip confirmation prompt
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 impl Cli {
@@ -408,6 +415,7 @@ impl Cli {
                 commands::config::run_config_set(self.config.as_deref(), key, value)
             }
             Commands::ConfigList => commands::config::run_config_list(self.config.as_deref()),
+            Commands::Undo { yes } => commands::undo::run_undo(self.config.as_deref(), yes),
         }
     }
 }
