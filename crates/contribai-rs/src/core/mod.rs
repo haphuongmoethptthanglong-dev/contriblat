@@ -3,6 +3,7 @@ pub mod crypto;
 pub mod error;
 pub mod events;
 pub mod leaderboard;
+pub mod logging;
 pub mod middleware;
 pub mod models;
 pub mod permissions;

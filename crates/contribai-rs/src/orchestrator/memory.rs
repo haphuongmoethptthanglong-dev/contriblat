@@ -128,6 +128,14 @@ CREATE TABLE IF NOT EXISTS pr_conversations (
     UNIQUE(repo, pr_number, comment_id)
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    mode        TEXT NOT NULL DEFAULT 'build',
+    status      TEXT NOT NULL DEFAULT 'running',
+    created_at  TEXT NOT NULL
+);
+
 -- Indexes for hot query paths
 CREATE INDEX IF NOT EXISTS idx_submitted_prs_created_at ON submitted_prs(created_at);
 CREATE INDEX IF NOT EXISTS idx_submitted_prs_status ON submitted_prs(status);
@@ -414,6 +422,40 @@ impl Memory {
         stats.insert("total_runs".into(), count);
 
         Ok(stats)
+    }
+
+    // ── Sessions ──────────────────────────────────────────────────────────
+
+    /// Create a new session.
+    pub fn create_session(&self, id: &str, name: &str, mode: &str) -> Result<()> {
+        let db = self.lock_db()?;
+        db.execute(
+            "INSERT OR REPLACE INTO sessions (id, name, mode, status, created_at)
+             VALUES (?1, ?2, ?3, 'running', ?4)",
+            params![id, name, mode, chrono::Utc::now().to_rfc3339()],
+        )
+        .map_err(|e| ContribError::Database(format!("Session create: {}", e)))?;
+        Ok(())
+    }
+
+    /// Get all sessions.
+    pub fn get_sessions(&self) -> Result<Vec<serde_json::Value>> {
+        let db = self.lock_db()?;
+        let mut stmt = db
+            .prepare("SELECT id, name, mode, status, created_at FROM sessions ORDER BY created_at DESC")
+            .map_err(|e| ContribError::Database(format!("Session query: {}", e)))?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok(serde_json::json!({
+                    "id": r.get::<_, String>(0)?,
+                    "name": r.get::<_, String>(1)?,
+                    "mode": r.get::<_, String>(2)?,
+                    "status": r.get::<_, String>(3)?,
+                    "created_at": r.get::<_, String>(4)?,
+                }))
+            })
+            .map_err(|e| ContribError::Database(format!("Session query map: {}", e)))?;
+        Ok(rows.filter_map(|r| r.ok()).collect())
     }
 
     // ── Outcome Learning ──────────────────────────────────────────────────

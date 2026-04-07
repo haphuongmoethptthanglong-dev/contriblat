@@ -122,6 +122,17 @@ enum Commands {
         port: u16,
     },
 
+    /// Start the pipeline server (remote API mode)
+    Serve {
+        /// Host to bind (default: 127.0.0.1)
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+
+        /// Port to listen on (default: 9876)
+        #[arg(long, default_value = "9876")]
+        port: u16,
+    },
+
     /// Show contribution statistics
     Stats,
 
@@ -355,9 +366,16 @@ impl Cli {
             Commands::WebServer { host, port } => {
                 commands::web_server::run_web_server(self.config.as_deref(), host, port).await
             }
+            Commands::Serve { host, port } => {
+                commands::serve::run_serve(self.config.as_deref(), host, port).await
+            }
             #[cfg(not(feature = "web"))]
             Commands::WebServer { .. } => {
                 anyhow::bail!("Web dashboard not available. Build with --features web");
+            }
+            #[cfg(not(feature = "web"))]
+            Commands::Serve { .. } => {
+                anyhow::bail!("Pipeline server not available. Build with --features web");
             }
             Commands::Schedule { cron } => {
                 commands::schedule::run_schedule(self.config.as_deref(), cron).await

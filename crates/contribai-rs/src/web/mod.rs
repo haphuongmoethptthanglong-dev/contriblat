@@ -494,12 +494,50 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/prs", get(get_prs))
         .route("/api/runs", get(get_runs))
         .route("/metrics", get(get_metrics))
-        .route("/api/webhooks/github", post(github_webhook))
-        // Protected routes — auth checked inside each handler
+        // Pipeline API routes (protected)
         .route("/api/run", post(trigger_run))
         .route("/api/run/target", post(trigger_target))
+        // Session API routes (protected)
+        .route("/api/sessions", get(list_sessions))
+        .route("/api/sessions/create", post(create_session))
+        // GitHub webhook
+        .route("/api/webhooks/github", post(github_webhook))
         .layer(cors)
         .with_state(state)
+}
+
+/// GET /api/sessions — list active sessions
+async fn list_sessions(
+    headers: HeaderMap,
+    Query(query): Query<ApiKeyQuery>,
+    State(state): State<AppState>,
+) -> Result<Json<Value>, StatusCode> {
+    verify_api_key(&headers, query.api_key.as_deref(), &state.api_keys)?;
+    let sessions = state.memory.get_sessions().unwrap_or_default();
+    Ok(Json(serde_json::json!({ "sessions": sessions })))
+}
+
+/// POST /api/sessions/create — create a new session
+async fn create_session(
+    headers: HeaderMap,
+    Query(query): Query<ApiKeyQuery>,
+    State(state): State<AppState>,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    verify_api_key(&headers, query.api_key.as_deref(), &state.api_keys)?;
+    let name = body.get("name").and_then(|v| v.as_str()).unwrap_or("default");
+    let mode = body.get("mode").and_then(|v| v.as_str()).unwrap_or("build");
+    let session_id = uuid::Uuid::new_v4().to_string();
+    state
+        .memory
+        .create_session(&session_id, name, mode)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(serde_json::json!({
+        "id": session_id,
+        "name": name,
+        "mode": mode,
+        "status": "running"
+    })))
 }
 
 /// Start the web server.

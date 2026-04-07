@@ -20,6 +20,8 @@ pub mod patrol;
 pub mod profile;
 pub mod run;
 pub mod schedule;
+pub mod serve;
+pub mod session;
 pub mod solve;
 pub mod stats;
 pub mod status;
