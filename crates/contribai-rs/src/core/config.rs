@@ -765,6 +765,20 @@ pub struct SandboxConfig {
     /// Block PR submission if sandbox validation fails.
     #[serde(default = "default_true")]
     pub require_validation: bool,
+    /// ── LSP Validation (Sprint 12) ──
+    /// Whether to use LSP diagnostics for validation.
+    #[serde(default)]
+    pub lsp_enabled: bool,
+    /// Timeout for LSP diagnostics in seconds.
+    #[serde(default = "default_lsp_timeout")]
+    pub lsp_timeout_secs: u64,
+    /// Whether to reject if LSP returns warnings.
+    #[serde(default)]
+    pub lsp_accept_warnings: bool,
+}
+
+fn default_lsp_timeout() -> u64 {
+    10
 }
 
 fn default_sandbox_enabled() -> bool {
@@ -785,6 +799,9 @@ impl Default for SandboxConfig {
             docker_image: None,
             timeout_seconds: default_sandbox_timeout(),
             require_validation: true,
+            lsp_enabled: false,
+            lsp_timeout_secs: default_lsp_timeout(),
+            lsp_accept_warnings: false,
         }
     }
 }
