@@ -102,8 +102,7 @@ impl SnapshotManager {
              ORDER BY id DESC LIMIT 50"
         };
 
-        if path.is_some() {
-            let p = path.unwrap();
+        if let Some(p) = path {
             let row = self
                 .db
                 .query_row(query, params![repo, p], |r| {

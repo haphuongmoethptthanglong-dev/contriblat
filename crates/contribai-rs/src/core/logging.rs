@@ -9,8 +9,7 @@
 //! ```
 
 use serde::Serialize;
-use std::fs::{create_dir_all, OpenOptions};
-use std::io::Write;
+use std::fs::create_dir_all;
 use std::path::Path;
 
 /// Structured log entry.

@@ -1045,7 +1045,6 @@ pub fn create_llm_providers(config: &LlmConfig) -> Result<(Box<dyn LlmProvider>,
 
 fn create_llm_provider_with_config(config: &LlmConfig, _small_model_override: Option<&str>) -> Result<Box<dyn LlmProvider>> {
     use super::cache::CachedLlmProvider;
-    use super::copilot::CopilotProvider;
     use super::retry::RetryingProvider;
 
     // Build primary provider
@@ -1150,13 +1149,15 @@ fn parse_provider_spec(spec: &str, base: &LlmConfig) -> LlmConfig {
 
 /// Create an LLM provider WITHOUT retry wrapper (for tests or perf-sensitive paths).
 pub fn create_llm_provider_raw(config: &LlmConfig) -> Result<Box<dyn LlmProvider>> {
+    use super::copilot::CopilotProvider;
     match config.provider.as_str() {
         "gemini" | "vertex" => Ok(Box::new(GeminiProvider::new(config)?) as Box<dyn LlmProvider>),
         "openai" => Ok(Box::new(OpenAIProvider::new(config)?) as Box<dyn LlmProvider>),
         "anthropic" => Ok(Box::new(AnthropicProvider::new(config)?) as Box<dyn LlmProvider>),
         "ollama" => Ok(Box::new(OllamaProvider::new(config)?) as Box<dyn LlmProvider>),
+        "copilot" => Ok(Box::new(CopilotProvider::new(config)?) as Box<dyn LlmProvider>),
         other => Err(ContribError::Llm(format!(
-            "Unknown LLM provider: {}. Available: gemini, vertex, openai, anthropic, ollama",
+            "Unknown LLM provider: {}. Available: gemini, vertex, openai, anthropic, ollama, copilot",
             other
         ))),
     }

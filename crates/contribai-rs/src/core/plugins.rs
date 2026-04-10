@@ -18,7 +18,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Plugin lifecycle hooks.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -45,6 +45,7 @@ pub struct PluginSpec {
 }
 
 /// Plugin manager — stores and dispatches to plugins.
+#[derive(Default)]
 pub struct PluginManager {
     plugins: Vec<PluginSpec>,
 }
@@ -75,12 +76,6 @@ impl PluginManager {
     /// Get count of active plugins.
     pub fn plugin_count(&self) -> usize {
         self.plugins.len()
-    }
-}
-
-impl Default for PluginManager {
-    fn default() -> Self {
-        Self { plugins: vec![] }
     }
 }
 

@@ -21,7 +21,7 @@ pub mod profile;
 pub mod run;
 pub mod schedule;
 pub mod serve;
-pub mod session;
+// pub mod session; // TODO: wire Session command when feature is complete
 pub mod solve;
 pub mod stats;
 pub mod status;

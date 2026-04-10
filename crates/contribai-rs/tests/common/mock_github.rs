@@ -3,6 +3,8 @@
 //! Uses wiremock to register canned responses for GitHub REST API endpoints.
 //! All helpers take a `&MockServer` and register matchers.
 
+#![allow(dead_code)] // Test utilities — may not all be used in current test suite
+
 use serde_json::{json, Value};
 use wiremock::matchers::{method, path, path_regex, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};

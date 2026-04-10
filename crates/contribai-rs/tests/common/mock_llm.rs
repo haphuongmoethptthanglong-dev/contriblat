@@ -3,6 +3,8 @@
 //! Returns canned responses based on prompt keywords.
 //! Tracks call count for assertions.
 
+#![allow(dead_code)] // Test utilities — may not all be used in current test suite
+
 use async_trait::async_trait;
 use contribai::llm::provider::{ChatMessage, LlmProvider};
 use std::sync::atomic::{AtomicUsize, Ordering};

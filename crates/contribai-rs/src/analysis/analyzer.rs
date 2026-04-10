@@ -131,9 +131,15 @@ impl<'a> CodeAnalyzer<'a> {
         let top_files = repo_map::top_files(&file_ranks, 20);
         info!(top = top_files.len(), "PageRank: top files identified");
 
-        // 5. Select relevant skills
+        // 5. Detect frameworks from imports
+        let frameworks = detect_frameworks(&import_graph);
+        info!(
+            frameworks = ?frameworks,
+            "Detected frameworks from imports"
+        );
+
+        // 6. Select relevant skills
         let language = repo.language.as_deref().unwrap_or("unknown");
-        let frameworks: HashSet<String> = HashSet::new(); // TODO: detect from imports
         let active_skills = skills::select_skills(language, &frameworks);
         info!(
             skills = active_skills.len(),
@@ -141,7 +147,7 @@ impl<'a> CodeAnalyzer<'a> {
             "Active analysis skills"
         );
 
-        // 6. Build context and run LLM analysis
+        // 7. Build context and run LLM analysis
         let context = self.build_context(repo, &file_contents, &all_symbols, &top_files);
         let mut all_findings: Vec<Finding> = Vec::new();
 
@@ -574,5 +580,168 @@ mod tests {
             "test",
         )));
         assert!(!is_transient_llm_error(&e));
+    }
+}
+
+// ── Framework Detection ─────────────────────────────────────────────────────
+
+/// Detect frameworks from import patterns across all files.
+fn detect_frameworks(import_graph: &HashMap<String, Vec<String>>) -> HashSet<String> {
+    let mut frameworks = HashSet::new();
+
+    // Collect all imports into a single set for analysis
+    let all_imports: HashSet<String> = import_graph
+        .values()
+        .flat_map(|imports| imports.iter().cloned())
+        .collect();
+
+    // Python frameworks
+    if all_imports.iter().any(|i| i.contains("django")) {
+        frameworks.insert("django".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("flask")) {
+        frameworks.insert("flask".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("fastapi")) {
+        frameworks.insert("fastapi".to_string());
+    }
+    if all_imports
+        .iter()
+        .any(|i| i.contains("celery") || i.contains("redis"))
+    {
+        frameworks.insert("celery".to_string());
+    }
+    if all_imports
+        .iter()
+        .any(|i| i.contains("sqlalchemy") || i.contains("alembic"))
+    {
+        frameworks.insert("sqlalchemy".to_string());
+    }
+
+    // JavaScript/TypeScript frameworks
+    if all_imports.iter().any(|i| i.contains("react")) {
+        frameworks.insert("react".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("next")) {
+        frameworks.insert("next.js".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("vue")) {
+        frameworks.insert("vue".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("angular")) {
+        frameworks.insert("angular".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("svelte")) {
+        frameworks.insert("svelte".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("express")) {
+        frameworks.insert("express".to_string());
+    }
+    if all_imports
+        .iter()
+        .any(|i| i.contains("tailwind") || i.contains("postcss"))
+    {
+        frameworks.insert("tailwind".to_string());
+    }
+
+    // Go frameworks
+    if all_imports.iter().any(|i| i.contains("gin")) {
+        frameworks.insert("gin".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("echo")) {
+        frameworks.insert("echo".to_string());
+    }
+    if all_imports
+        .iter()
+        .any(|i| i.contains("gorm") || i.contains("sqlx"))
+    {
+        frameworks.insert("gorm".to_string());
+    }
+
+    // Rust frameworks
+    if all_imports.iter().any(|i| i.contains("actix")) {
+        frameworks.insert("actix".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("axum")) {
+        frameworks.insert("axum".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("rocket")) {
+        frameworks.insert("rocket".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("tokio")) {
+        frameworks.insert("tokio".to_string());
+    }
+    if all_imports.iter().any(|i| i.contains("serde")) {
+        frameworks.insert("serde".to_string());
+    }
+
+    // Java frameworks
+    if all_imports
+        .iter()
+        .any(|i| i.contains("spring") || i.contains("springframework"))
+    {
+        frameworks.insert("spring".to_string());
+    }
+
+    // Ruby frameworks
+    if all_imports.iter().any(|i| i.contains("rails")) {
+        frameworks.insert("rails".to_string());
+    }
+
+    // PHP frameworks
+    if all_imports.iter().any(|i| i.contains("laravel")) {
+        frameworks.insert("laravel".to_string());
+    }
+
+    frameworks
+}
+
+#[cfg(test)]
+mod framework_tests {
+    use super::*;
+
+    #[test]
+    fn test_detect_django() {
+        let imports = HashMap::from([
+            ("views.py".to_string(), vec!["django.http".to_string(), "django.shortcuts".to_string()]),
+        ]);
+        let frameworks = detect_frameworks(&imports);
+        assert!(frameworks.contains("django"));
+    }
+
+    #[test]
+    fn test_detect_react() {
+        let imports = HashMap::from([
+            ("App.jsx".to_string(), vec!["react".to_string(), "react-dom".to_string()]),
+        ]);
+        let frameworks = detect_frameworks(&imports);
+        assert!(frameworks.contains("react"));
+    }
+
+    #[test]
+    fn test_detect_multiple_rust() {
+        let imports = HashMap::from([
+            ("main.rs".to_string(), vec!["axum".to_string(), "tokio".to_string(), "serde".to_string()]),
+        ]);
+        let frameworks = detect_frameworks(&imports);
+        assert!(frameworks.contains("axum"));
+        assert!(frameworks.contains("tokio"));
+        assert!(frameworks.contains("serde"));
+    }
+
+    #[test]
+    fn test_detect_empty_imports() {
+        let imports = HashMap::new();
+        let frameworks = detect_frameworks(&imports);
+        assert!(frameworks.is_empty());
+    }
+
+    #[test]
+    fn test_detect_no_frameworks() {
+        let imports = HashMap::from([
+            ("utils.py".to_string(), vec!["os".to_string(), "sys".to_string()]),
+        ]);
+        let frameworks = detect_frameworks(&imports);
+        assert!(frameworks.is_empty());
     }
 }

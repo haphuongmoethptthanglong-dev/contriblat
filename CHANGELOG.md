@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0] - 2026-04-11
+
+### Added
+- **Sprint 17 complete** — Code quality & dead code removal:
+  - Framework detection from imports (20+ frameworks: Django, React, Rails, etc.)
+  - Copilot provider fully wired in all factory functions
+  - Session dead code removed (commented out for future feature)
+  - 5 new framework detection tests
+
+### Fixed
+- **6 clippy warnings eliminated** — Zero-warning strict lint:
+  - Removed unused imports (`OpenOptions`, `std::io::Write`, `warn`, `CopilotProvider`)
+  - Fixed `unwrap()` after `is_some()` → `if let Some(p) = path`
+  - Derived `Default` for `PluginManager` (manual impl removed)
+  - Test helper warnings suppressed with `#[allow(dead_code)]`
+
+### Stats
+- Tests: 587 → 602 (+15)
+- Clippy warnings: 6 → 0
+- Dead code: Session module removed, Copilot wired
+
 ## [5.17.0] - 2026-04-06
 
 ### Added
