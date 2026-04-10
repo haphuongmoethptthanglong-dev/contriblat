@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.0] - 2026-04-11
+
+### Added
+- **Sprint 18 complete** — Dependencies, benchmarks, binary optimization:
+  - Criterion benchmark suite (5 benchmarks: AST extraction, framework detection, risk classification)
+  - Rust dependabot (weekly automated dependency updates)
+  - Test fixtures for benchmarking (Python/Rust/JavaScript samples)
+
+### Changed
+- **Dependencies updated**:
+  - tower 0.4 → 0.5 (compatible with axum 0.7)
+  - Tree-sitter grammar audit (documented 0.23/0.24/0.25 compatibility)
+- **Binary size optimization**: 34MB → 23MB (32% reduction)
+  - Moved `profile.release` to workspace root (eliminated warning)
+  - LTO + strip + opt-level=z all applied correctly
+
+### Stats
+- Binary size: 34MB → 23MB (-32%)
+- Benchmarks: 0 → 5 (criterion framework)
+- Dependabot: Python+Actions → +Rust (weekly updates)
+
 ## [6.1.0] - 2026-04-11
 
 ### Added
