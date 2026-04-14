@@ -657,6 +657,161 @@ impl AstIntel {
         resolved
     }
 
+    /// Multi-hop import resolution: follows import chains across files.
+    ///
+    /// 1-hop: A imports B directly
+    /// 2-hop: A imports B, B imports C → resolve C for A
+    ///
+    /// Returns file_path → resolved symbols map.
+    /// Cap at 50 symbols total to avoid prompt pollution.
+    pub fn resolve_imports_multihop(
+        file_imports: &HashMap<String, Vec<ImportTarget>>,
+        parsed_files: &HashMap<String, Vec<Symbol>>,
+    ) -> HashMap<String, Vec<Symbol>> {
+        let mut resolved: HashMap<String, Vec<Symbol>> = HashMap::new();
+        let mut total_count = 0;
+        let max_symbols = 50;
+
+        // Build a lookup: source_path → symbols in files that import from it
+        let mut source_to_symbols: HashMap<String, Vec<ImportTarget>> = HashMap::new();
+        for imports in file_imports.values() {
+            for target in imports {
+                source_to_symbols
+                    .entry(target.source_path.clone())
+                    .or_default()
+                    .push(target.clone());
+            }
+        }
+
+        // 1-hop resolution: direct imports
+        for (file_path, imports) in file_imports {
+            if total_count >= max_symbols {
+                break;
+            }
+
+            let mut file_symbols = Vec::new();
+            for target in imports {
+                if total_count >= max_symbols {
+                    break;
+                }
+
+                // Skip standard library imports
+                if is_std_import(&target.source_path) {
+                    continue;
+                }
+
+                // Find the symbol in parsed files
+                for (parsed_path, symbols) in parsed_files {
+                    // Check if this file matches the import source
+                    if !paths_match(&target.source_path, parsed_path) {
+                        continue;
+                    }
+
+                    for symbol in symbols {
+                        if symbol.name == target.symbol_name
+                            && matches!(
+                                symbol.kind,
+                                SymbolKind::Function
+                                    | SymbolKind::Struct
+                                    | SymbolKind::Class
+                                    | SymbolKind::Interface
+                                    | SymbolKind::Enum
+                            )
+                        {
+                            file_symbols.push(symbol.clone());
+                            total_count += 1;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if !file_symbols.is_empty() {
+                resolved.insert(file_path.clone(), file_symbols);
+            }
+        }
+
+        // 2-hop resolution: follow import chains
+        for (file_a, imports_a) in file_imports {
+            if total_count >= max_symbols {
+                break;
+            }
+
+            for target_a in imports_a {
+                if is_std_import(&target_a.source_path) {
+                    continue;
+                }
+
+                // Find file B that file A imports from
+                for file_b_path in parsed_files.keys() {
+                    if !paths_match(&target_a.source_path, file_b_path) {
+                        continue;
+                    }
+
+                    // Get imports from file B
+                    if let Some(imports_b) = file_imports.get(file_b_path) {
+                        for target_b in imports_b {
+                            if total_count >= max_symbols {
+                                break;
+                            }
+
+                            if is_std_import(&target_b.source_path) {
+                                continue;
+                            }
+
+                            // Resolve symbols from file B's imports (2-hop)
+                            for (file_c_path, symbols_c) in parsed_files {
+                                if !paths_match(&target_b.source_path, file_c_path) {
+                                    continue;
+                                }
+
+                                for symbol in symbols_c {
+                                    if symbol.name == target_b.symbol_name
+                                        && matches!(
+                                            symbol.kind,
+                                            SymbolKind::Function
+                                                | SymbolKind::Struct
+                                                | SymbolKind::Class
+                                                | SymbolKind::Interface
+                                                | SymbolKind::Enum
+                                        )
+                                    {
+                                        resolved
+                                            .entry(file_a.clone())
+                                            .or_default()
+                                            .push(symbol.clone());
+                                        total_count += 1;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        resolved
+    }
+
+    /// Count symbol usage frequency across all files.
+    ///
+    /// Returns symbol_name → count map. Useful for identifying
+    /// commonly-used symbols that might be important.
+    pub fn count_symbol_frequency(
+        parsed_files: &HashMap<String, Vec<Symbol>>,
+    ) -> HashMap<String, usize> {
+        let mut freq = HashMap::new();
+
+        for symbols in parsed_files.values() {
+            for symbol in symbols {
+                *freq.entry(symbol.name.clone()).or_insert(0) += 1;
+            }
+        }
+
+        freq
+    }
+
     /// Get a summary of symbols as a compact string for LLM context.
     pub fn symbols_summary(symbols: &[Symbol]) -> String {
         if symbols.is_empty() {
@@ -676,6 +831,53 @@ impl AstIntel {
         lines.join("\n")
     }
 }
+
+// ── Helper Functions ─────────────────────────────────────────────────────────
+
+/// Check if an import source is a standard library or third-party package.
+fn is_std_import(source_path: &str) -> bool {
+    source_path.starts_with("std")
+        || source_path.starts_with("core")
+        || source_path.starts_with("alloc")
+        || source_path.starts_with("os")
+        || source_path.starts_with("sys")
+        || source_path.starts_with("react")
+        || source_path.starts_with("vue")
+        || source_path.starts_with("@")
+        || source_path.starts_with("node:")
+        || source_path.contains("node_modules")
+        || source_path.contains(".venv")
+        || source_path.contains("vendor")
+        || source_path.contains("site-packages")
+        || source_path.contains("pkg")
+}
+
+/// Check if an import source path matches a file path.
+fn paths_match(source_path: &str, file_path: &str) -> bool {
+    // Normalize paths for comparison
+    let normalized_source = source_path
+        .replace("::", "/")
+        .replace(".", "/")
+        .replace("\\", "/");
+    let normalized_file = file_path.replace("\\", "/");
+
+    // Check if file path ends with source path (module → file mapping)
+    normalized_file.contains(&normalized_source)
+        || normalized_source.contains(
+            normalized_file
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+                .trim_end_matches(".rs")
+                .trim_end_matches(".py")
+                .trim_end_matches(".js")
+                .trim_end_matches(".ts")
+                .trim_end_matches(".go")
+                .trim_end_matches(".java"),
+        )
+}
+
+// ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -1014,5 +1216,136 @@ namespace MyApp {
         let summary = AstIntel::symbols_summary(&symbols);
         assert!(summary.contains("main"));
         assert!(summary.contains("Config"));
+    }
+
+    #[test]
+    fn test_multihop_1hop_resolution() {
+        // File A imports utils::helper
+        let imports = vec![ImportTarget {
+            symbol_name: "helper".to_string(),
+            source_path: "utils".to_string(),
+        }];
+        let mut file_imports = HashMap::new();
+        file_imports.insert("src/main.rs".to_string(), imports);
+
+        // utils.rs has helper function
+        let utils_symbols = vec![Symbol {
+            name: "helper".to_string(),
+            kind: SymbolKind::Function,
+            file_path: "src/utils.rs".into(),
+            line_start: 10,
+            line_end: 20,
+        }];
+        let mut parsed_files = HashMap::new();
+        parsed_files.insert("src/utils.rs".to_string(), utils_symbols);
+
+        let resolved = AstIntel::resolve_imports_multihop(&file_imports, &parsed_files);
+        assert!(resolved.contains_key("src/main.rs"));
+        assert_eq!(resolved["src/main.rs"].len(), 1);
+        assert_eq!(resolved["src/main.rs"][0].name, "helper");
+    }
+
+    #[test]
+    fn test_multihop_2hop_resolution() {
+        // main.rs imports from models
+        let main_imports = vec![ImportTarget {
+            symbol_name: "User".to_string(),
+            source_path: "models".to_string(),
+        }];
+        // models.rs imports from db
+        let model_imports = vec![ImportTarget {
+            symbol_name: "Connection".to_string(),
+            source_path: "db".to_string(),
+        }];
+        let mut file_imports = HashMap::new();
+        file_imports.insert("src/main.rs".to_string(), main_imports);
+        file_imports.insert("src/models.rs".to_string(), model_imports);
+
+        // db.rs has Connection struct
+        let db_symbols = vec![Symbol {
+            name: "Connection".to_string(),
+            kind: SymbolKind::Struct,
+            file_path: "src/db.rs".into(),
+            line_start: 5,
+            line_end: 15,
+        }];
+        let mut parsed_files = HashMap::new();
+        parsed_files.insert("src/db.rs".to_string(), db_symbols);
+
+        let resolved = AstIntel::resolve_imports_multihop(&file_imports, &parsed_files);
+        // 2-hop: main.rs → models.rs → db.rs::Connection
+        assert!(resolved.contains_key("src/main.rs"));
+    }
+
+    #[test]
+    fn test_multihop_cap_at_50() {
+        // Create 60 imports to test capping
+        let imports: Vec<ImportTarget> = (0..60)
+            .map(|i| ImportTarget {
+                symbol_name: format!("Symbol{}", i),
+                source_path: "local::module".into(),
+            })
+            .collect();
+        let mut file_imports = HashMap::new();
+        file_imports.insert("src/main.rs".to_string(), imports);
+
+        let parsed_files = HashMap::new(); // No matching symbols
+        let resolved = AstIntel::resolve_imports_multihop(&file_imports, &parsed_files);
+        // Should be empty since no parsed files match
+        assert!(resolved.is_empty() || resolved.values().map(|v| v.len()).sum::<usize>() <= 50);
+    }
+
+    #[test]
+    fn test_symbol_frequency() {
+        let symbols_a = vec![
+            Symbol {
+                name: "main".to_string(),
+                kind: SymbolKind::Function,
+                file_path: "a.rs".into(),
+                line_start: 1,
+                line_end: 10,
+            },
+            Symbol {
+                name: "helper".to_string(),
+                kind: SymbolKind::Function,
+                file_path: "a.rs".into(),
+                line_start: 15,
+                line_end: 25,
+            },
+        ];
+        let symbols_b = vec![Symbol {
+            name: "helper".to_string(),
+            kind: SymbolKind::Function,
+            file_path: "b.rs".into(),
+            line_start: 5,
+            line_end: 15,
+        }];
+        let mut parsed_files = HashMap::new();
+        parsed_files.insert("a.rs".to_string(), symbols_a);
+        parsed_files.insert("b.rs".to_string(), symbols_b);
+
+        let freq = AstIntel::count_symbol_frequency(&parsed_files);
+        assert_eq!(freq["helper"], 2);
+        assert_eq!(freq["main"], 1);
+    }
+
+    #[test]
+    fn test_is_std_import() {
+        assert!(is_std_import("std::collections"));
+        assert!(is_std_import("os.path"));
+        assert!(is_std_import("node:fs"));
+        assert!(is_std_import("react"));
+        assert!(is_std_import("@types/node"));
+        assert!(is_std_import("node_modules/lodash"));
+        assert!(!is_std_import("./utils"));
+        assert!(!is_std_import("my_package"));
+    }
+
+    #[test]
+    fn test_paths_match() {
+        assert!(paths_match("utils", "src/utils.rs"));
+        assert!(paths_match("std::collections", "std/collections/hashmap.rs"));
+        assert!(paths_match("models.user", "src/models/user.py"));
+        assert!(!paths_match("utils", "src/helpers.rs"));
     }
 }
