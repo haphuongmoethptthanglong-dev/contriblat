@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] - 2026-04-08
+
+### Added
+- **Sprint 16 complete** — Plugin System, Enterprise Mode, i18n:
+  - Full plugin system with trait-based architecture
+  - Enterprise mode with configurable features
+  - Internationalization (i18n) support with locale files
+  - Permission system with rule-based access control
+  - Agent modes (Plan vs Build)
+  - Custom commands support
+  - LSP configuration
+  - Filesystem snapshot tracking with undo capability
+
+### Stats
+- CLI commands: 40+ → 50+
+- New modules: plugins, permissions, i18n, sessions, agents
+
+## [5.20.0] - 2026-04-07
+
+### Added
+- **Sprints 13-14-15** — Client/Server, TUI Polish, Observability:
+  - MCP client for external MCP servers
+  - TUI improvements (keyboard shortcuts, navigation)
+  - Observability enhancements (tracing, metrics)
+  - Session management system
+  - Serve command for web server mode
+
+### Changed
+- TUI: Better tab navigation and key bindings
+- CLI: Added serve and client commands
+
+## [5.19.0] - 2026-04-07
+
+### Added
+- **Sprints 8-9-10-12 combined** — Multiple features:
+  - Agent modes (Plan vs Build) — Sprint 8.1
+  - Rule-based permission system — Sprint 8.2
+  - Filesystem snapshot tracking + undo — Sprint 8.3
+  - Small model routing + auto compaction + budget — Sprint 9
+  - Sessions system — Sprint 10
+  - Custom commands + LSP config — Sprint 12
+
+### Stats
+- New features: 6 major subsystems
+- Tests: 500+ → 550+
+
+## [5.18.0] - 2026-04-06
+
+### Added
+- **Sprint 11** — Auth Ecosystem (Copilot, Login, Fallback Chain):
+  - GitHub Copilot LLM provider
+  - Interactive login command
+  - Fallback chain for LLM providers
+  - Vertex AI detection fix
+
+### Fixed
+- Config loading now searches default config locations
+- Vertex AI provider detection
+
+## [5.17.1] - 2026-04-06
+
+### Fixed
+- **Critical**: `load_config` now searches default config locations
+- Vertex AI provider detection in config loading
+
 ## [6.2.0] - 2026-04-11
 
 ### Added

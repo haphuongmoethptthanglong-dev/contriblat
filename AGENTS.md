@@ -11,7 +11,7 @@ It discovers repos, analyzes code, generates fixes, and submits pull requests �
 **It is NOT** a library/SDK, web app, or CLI tool intended for end-user consumption.
 It is itself an AI agent that operates on other GitHub repositories.
 
-> **v5.8.1 — Primary implementation is Rust** (`crates/contribai-rs/`).
+> **v6.2.0 — Primary implementation is Rust** (`crates/contribai-rs/`).
 > Python code is in `python/` (legacy v4.1.0, kept for reference).
 
 ## Tech Stack
@@ -28,14 +28,14 @@ It is itself an AI agent that operates on other GitHub repositories.
 | TUI | ratatui + crossterm |
 | CLI | clap v4 (derive) + dialoguer + colored |
 | AST | tree-sitter (13 languages: Python, JS, TS, Go, Rust, Java, C, C++, Ruby, PHP, C#, HTML, CSS) |
-| Tests | 418 tests (mockall, wiremock, tokio-test) |
+| Tests | 602 tests (mockall, wiremock, tokio-test) |
 | Lint | clippy + ruff (Python legacy) |
 
 ## Project Structure
 
 ```
 ContribAI/
-├── crates/contribai-rs/        ← PRIMARY: Rust v5.8.1
+├── crates/contribai-rs/        ← PRIMARY: Rust v6.2.0
 │   ├── src/
 │   │   ├── main.rs             entry point
 │   │   ├── lib.rs              library root
@@ -74,7 +74,7 @@ ContribAI/
 │   │   ├── web/mod.rs          axum dashboard API
 │   │   ├── sandbox/sandbox.rs  Docker + ast fallback
 │   │   └── tools/protocol.rs  tool interface
-│   ├── Cargo.toml              v5.8.1
+│   ├── Cargo.toml              v6.2.0
 │   └── tests/                 418 Rust tests
 │
 ├── python/                     LEGACY Python v4.1.0
@@ -86,7 +86,7 @@ ContribAI/
 └── config.yaml.template        shared config template
 ```
 
-## Architecture (v5.8.1)
+## Architecture (v6.2.0)
 
 ### Core Pipeline
 ```
@@ -212,7 +212,7 @@ async fn run_my_command(arg: &str, config_path: Option<&str>) -> anyhow::Result<
 
 ```bash
 # From project root (Rust workspace):
-cargo test                          # 418 tests
+cargo test                          # 602 tests
 cargo test -- --nocapture           # with stdout
 cargo test cli::                    # CLI tests only
 cargo build --release               # production binary
