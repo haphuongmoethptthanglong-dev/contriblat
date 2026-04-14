@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-ContribAI is a mature autonomous AI contribution system. Originally built in Python (v0.x–v4.0), it was rewritten in Rust (v5.0.0) for performance, safety, and new capabilities like tree-sitter AST parsing and PageRank file ranking. v5.2.0 added an interactive TUI and full CLI parity. v5.3.0 introduced watchlist mode and 13-language AST. v5.4.0 added dream memory consolidation and risk classification. v5.5.0 delivers multi-file PRs, end-to-end issue solving, and conversation memory. v5.6.0 adds integration tests, LLM retry with backoff, GitHub rate limiter, and the doctor command. v5.7.0–v5.8.0 deliver cross-file import resolution, hunt CLI fix, and full integration test coverage for hunt/patrol. v5.8.1 adds closed-PR failure analysis and outcome-aware quality scoring. The roadmap focuses on enterprise scalability and plugin ecosystem.
+ContribAI is a mature autonomous AI contribution system. Originally built in Python (v0.x–v4.0), it was rewritten in Rust (v5.0.0) for performance, safety, and new capabilities like tree-sitter AST parsing and PageRank file ranking. v5.2.0 added an interactive TUI and full CLI parity. v5.3.0 introduced watchlist mode and 13-language AST. v5.4.0 added dream memory consolidation and risk classification. v5.5.0 delivers multi-file PRs, end-to-end issue solving, and conversation memory. v5.6.0 adds integration tests, LLM retry with backoff, GitHub rate limiter, and the doctor command. v5.7.0–v5.8.0 deliver cross-file import resolution, hunt CLI fix, and full integration test coverage for hunt/patrol. v6.2.0 adds closed-PR failure analysis and outcome-aware quality scoring. The roadmap focuses on enterprise scalability and plugin ecosystem.
 
 ---
 
@@ -171,19 +171,19 @@ ContribAI is a mature autonomous AI contribution system. Originally built in Pyt
 - ✓ Hunt integration tests (4 tests): daily limit gate, merge-friendly filter, TTL skip, empty discovery
 - ✓ 67 .rs files, ~29,200 LOC, **413 tests**
 
-### v5.8.1 (2026-04-05) — Closed-PR Analysis, Outcome-Aware Scoring ✓
+### v6.2.0 (2026-04-05) — Closed-PR Analysis, Outcome-Aware Scoring ✓
 
-**Key Achievements (v5.8.1):**
+**Key Achievements (v6.2.0):**
 - ✓ Closed-PR failure analysis: patrol fetches review comments + CI status for closed-but-not-merged PRs, stores feedback via `memory.record_outcome()`
 - ✓ Outcome-aware quality scoring: 8th check `check_outcome_history` adjusts score based on `merge_rate` and `rejected_types`
 - ✓ `resolved_imports` field on `RepoContext`: clean cross-file data separated from `symbol_map`
 - ✓ Depth guard on `walk_import_nodes` (capped at 8)
 - ✓ Pipeline integration test for `process_repo` symbol_map wiring with wiremock
-- ✓ 67 .rs files, ~29,577 LOC, **418 tests**
+- ✓ 67 .rs files, ~29,577 LOC, **602 tests**
 
 ---
 
-## Feature Status Matrix (v5.8.1)
+## Feature Status Matrix (v6.2.0)
 
 ### Core Pipeline
 
@@ -282,7 +282,7 @@ ContribAI is a mature autonomous AI contribution system. Originally built in Pyt
 - ✓ PR conversation memory for context-aware responses
 - ✓ 40+ CLI commands, 355 tests, 66 .rs files, ~28,000 LOC
 
-### Milestone 7: Test Coverage & Analysis (v5.6.0–v5.8.1) ✓
+### Milestone 7: Test Coverage & Analysis (v5.6.0–v6.2.0) ✓
 - ✓ Integration test framework (wiremock 0.6 + MockLlm)
 - ✓ Hunt & patrol integration tests (9 tests covering critical paths)
 - ✓ Cross-file import resolution (5 languages, 1-hop, 20-symbol cap)
@@ -291,11 +291,30 @@ ContribAI is a mature autonomous AI contribution system. Originally built in Pyt
 - ✓ GitHub rate limiter + doctor command
 - ✓ DB indexes for hot query paths
 - ✓ Closed-PR failure analysis + outcome-aware quality scoring (8-check)
-- ✓ 67 .rs files, ~29,577 LOC, 418 tests
+- ✓ 67 .rs files, ~29,577 LOC, 602 tests
+
+### v6.1.0 (2026-04-11) — Code Quality & Framework Detection ✓
+
+**Key Achievements (v6.1.0):**
+- ✓ 0 clippy warnings (6 → 0) — strict lint enforced
+- ✓ Framework detection from imports (20+ frameworks: Django, React, Rails, etc.)
+- ✓ Copilot provider fully wired in all factory functions
+- ✓ Session dead code removed
+- ✓ 602 tests (+15 framework detection tests)
+
+### v6.2.0 (2026-04-11) — Dependencies, Benchmarks & Optimization ✓
+
+**Key Achievements (v6.2.0):**
+- ✓ tower 0.4 → 0.5 (compatible with axum 0.7)
+- ✓ Rust dependabot (weekly automated dependency updates)
+- ✓ Criterion benchmark suite (5 benchmarks)
+- ✓ Binary size: 34MB → 23MB (32% reduction)
+- ✓ Test fixtures for benchmarking
+- ✓ Tree-sitter grammar audit (documented compatibility)
 
 ---
 
-## Planned Features (v5.9.0+)
+## Planned Features (v6.3.0+)
 
 ### v5.6.0 — Integration Tests & Merge Rate ✓ (Released 2026-04-04)
 
@@ -372,7 +391,7 @@ ContribAI is a mature autonomous AI contribution system. Originally built in Pyt
 
 ## Success Metrics
 
-| Metric | v4.0 (Python) | v5.0 (Rust) | v5.5.0 | v5.8.1 (Current) |
+| Metric | v4.0 (Python) | v5.0 (Rust) | v5.5.0 | v6.2.0 (Current) |
 |--------|---------------|-------------|--------|------------------|
 | **LOC** | ~5,500 | ~21,400 | ~28,000 | **~29,577** |
 | **Files** | 45 | 63 | 66 | **67** |
@@ -391,5 +410,5 @@ ContribAI is a mature autonomous AI contribution system. Originally built in Pyt
 
 - **Created:** 2026-03-28
 - **Last Updated:** 2026-04-05
-- **Version:** 5.8.1 (Closed-PR analysis, outcome-aware scoring, cross-file imports, 418 tests)
+- **Version:** 5.8.1 (Closed-PR analysis, outcome-aware scoring, cross-file imports, 602 tests)
 - **Next Review:** 2026-06-30 (Q2 end)
