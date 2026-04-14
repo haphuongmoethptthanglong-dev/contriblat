@@ -1344,7 +1344,10 @@ namespace MyApp {
     #[test]
     fn test_paths_match() {
         assert!(paths_match("utils", "src/utils.rs"));
-        assert!(paths_match("std::collections", "std/collections/hashmap.rs"));
+        assert!(paths_match(
+            "std::collections",
+            "std/collections/hashmap.rs"
+        ));
         assert!(paths_match("models.user", "src/models/user.py"));
         assert!(!paths_match("utils", "src/helpers.rs"));
     }

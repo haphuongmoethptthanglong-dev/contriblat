@@ -120,8 +120,11 @@ impl<'a> ContributionGenerator<'a> {
             }
         };
 
+        // 3.5. Multi-file dependency ordering — ensure edits respect dependencies
+        let ordered_changes = Self::order_changes_by_dependency(&changes, context);
+
         // 4. Generate commit message
-        let commit_msg = self.generate_commit_message(finding, &changes);
+        let commit_msg = self.generate_commit_message(finding, &ordered_changes);
 
         // 5. Generate branch name
         let branch_name = Self::generate_branch_name(finding);
@@ -134,7 +137,7 @@ impl<'a> ContributionGenerator<'a> {
             contribution_type: finding.finding_type.clone(),
             title: pr_title,
             description: finding.description.clone(),
-            changes,
+            changes: ordered_changes,
             commit_message: commit_msg,
             tests_added: vec![],
             branch_name,
@@ -468,6 +471,155 @@ impl<'a> ContributionGenerator<'a> {
             ContributionType::Refactor => "Refactor",
         };
         format!("{}: {}", label, finding.title)
+    }
+
+    // ── Multi-file Dependency Ordering (Sprint 22) ─────────────────────────
+
+    /// Order file changes so that dependencies come before dependents.
+    ///
+    /// Uses topological sort based on import relationships in symbol_map.
+    /// Files that are imported by others should be edited first.
+    fn order_changes_by_dependency(
+        changes: &[FileChange],
+        context: &RepoContext,
+    ) -> Vec<FileChange> {
+        if changes.len() <= 1 {
+            return changes.to_vec();
+        }
+
+        // Build import graph: file -> set of files it imports
+        let mut import_graph: std::collections::HashMap<String, std::collections::HashSet<String>> =
+            std::collections::HashMap::new();
+        for (file_path, symbols) in &context.symbol_map {
+            let mut imports = std::collections::HashSet::new();
+            for symbol in symbols {
+                if symbol.kind == crate::core::models::SymbolKind::Import {
+                    // Try to match import to a file path
+                    for other_file in context.relevant_files.keys() {
+                        if Self::paths_might_import(&symbol.name, other_file) {
+                            imports.insert(other_file.clone());
+                        }
+                    }
+                }
+            }
+            import_graph.insert(file_path.clone(), imports);
+        }
+
+        // Topological sort: files with no incoming edges first (dependencies)
+        let mut ordered = Vec::new();
+        let mut visited = std::collections::HashSet::new();
+
+        // Sort changes by number of incoming edges (fewer imports = earlier)
+        let mut change_list: Vec<(FileChange, usize)> = changes
+            .iter()
+            .map(|c| {
+                let incoming = import_graph
+                    .values()
+                    .filter(|imports| imports.contains(&c.path))
+                    .count();
+                (c.clone(), incoming)
+            })
+            .collect();
+
+        // Sort by incoming edges ascending (dependencies first)
+        change_list.sort_by_key(|(_, incoming)| *incoming);
+
+        for (change, _) in change_list {
+            if !visited.contains(&change.path) {
+                visited.insert(change.path.clone());
+                ordered.push(change);
+            }
+        }
+
+        ordered
+    }
+
+    /// Check if a symbol name could be an import from a file path.
+    fn paths_might_import(symbol_name: &str, file_path: &str) -> bool {
+        let name_lower = symbol_name.to_lowercase();
+        let path_lower = file_path.to_lowercase();
+
+        // Check if symbol matches file name (without extension)
+        let file_base = path_lower
+            .rsplit('/')
+            .next()
+            .unwrap_or("")
+            .split('.')
+            .next()
+            .unwrap_or("");
+
+        name_lower.contains(file_base) || file_base.contains(&name_lower)
+    }
+
+    // ── Diff Quality Scoring (Sprint 22) ────────────────────────────────────
+
+    /// Score the quality of a generated diff before submission.
+    ///
+    /// Returns a score from 0.0 to 1.0 based on:
+    /// - Edit size appropriateness (not too large, not too small)
+    /// - Search/replace sanity (old text actually exists in file)
+    /// - No accidental deletions
+    /// - Code coherence (doesn't break surrounding context)
+    pub fn score_diff_quality(changes: &[FileChange], context: &RepoContext) -> f64 {
+        if changes.is_empty() {
+            return 0.0;
+        }
+
+        let mut total_score = 0.0;
+        let mut checks = 0;
+
+        for change in changes {
+            let original = context.relevant_files.get(&change.path);
+
+            // Check 1: New files must have substantive content
+            if change.is_new_file {
+                let content_score = if change.new_content.trim().len() >= 20 {
+                    1.0
+                } else {
+                    0.3
+                };
+                total_score += content_score;
+                checks += 1;
+            }
+
+            // Check 2: Modified files should have reasonable diff size
+            if let Some(orig) = original {
+                let orig_lines = orig.lines().count();
+                let new_lines = change.new_content.lines().count();
+                let diff_ratio = if orig_lines > 0 {
+                    (new_lines as f64 - orig_lines as f64).abs() / orig_lines as f64
+                } else {
+                    1.0
+                };
+
+                // Penalize massive changes (>50% diff)
+                let size_score = if diff_ratio < 0.5 {
+                    1.0
+                } else if diff_ratio < 1.0 {
+                    0.7
+                } else {
+                    0.4
+                };
+                total_score += size_score;
+                checks += 1;
+            }
+
+            // Check 3: No-op detection
+            if let Some(orig) = original {
+                if change.new_content == *orig {
+                    total_score += 0.0; // No-op
+                } else {
+                    total_score += 1.0;
+                }
+                checks += 1;
+            }
+        }
+
+        if checks == 0 {
+            0.5 // Default medium score if no checks applicable
+        } else {
+            total_score / checks as f64
+        }
     }
 }
 

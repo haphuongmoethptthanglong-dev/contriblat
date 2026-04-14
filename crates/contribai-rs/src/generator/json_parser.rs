@@ -323,4 +323,94 @@ mod tests {
         assert!(ch[0].new_content.contains("x = 2"));
         assert!(!ch[0].new_content.contains("x = 1"));
     }
+
+    #[test]
+    fn test_validate_json_schema() {
+        // Valid change schema
+        let valid = r#"{"changes": [{"path": "test.py", "is_new_file": false, "edits": [{"search": "old", "replace": "new"}]}]}"#;
+        let parsed: serde_json::Value = serde_json::from_str(valid).unwrap();
+        assert!(validate_change_schema(&parsed));
+
+        // Missing required field
+        let invalid = r#"{"changes": [{"path": "test.py"}]}"#;
+        let parsed: serde_json::Value = serde_json::from_str(invalid).unwrap();
+        assert!(!validate_change_schema(&parsed));
+
+        // Wrong type
+        let invalid2 = r#"{"changes": "not an array"}"#;
+        let parsed: serde_json::Value = serde_json::from_str(invalid2).unwrap();
+        assert!(!validate_change_schema(&invalid2));
+    }
+}
+
+// ── JSON Schema Validation (Sprint 22) ──────────────────────────────────────
+
+/// Validate that parsed JSON matches the expected change schema.
+///
+/// Required structure:
+/// ```json
+/// {
+///   "changes": [
+///     {
+///       "path": "string",
+///       "is_new_file": boolean,
+///       "edits": [{"search": "string", "replace": "string"}]  // for existing files
+///       // OR
+///       "content": "string"  // for new files
+///     }
+///   ]
+/// }
+/// ```
+pub fn validate_change_schema(value: &serde_json::Value) -> bool {
+    // Must have "changes" key with array value
+    let changes = match value.get("changes").and_then(|v| v.as_array()) {
+        Some(arr) => arr,
+        None => return false,
+    };
+
+    if changes.is_empty() {
+        return false;
+    }
+
+    for change in changes {
+        // Must have "path" as string
+        if change.get("path").and_then(|v| v.as_str()).is_none() {
+            return false;
+        }
+
+        // Must have "is_new_file" as boolean
+        if change
+            .get("is_new_file")
+            .and_then(|v| v.as_bool())
+            .is_none()
+        {
+            return false;
+        }
+
+        let is_new = change["is_new_file"].as_bool().unwrap_or(false);
+
+        if is_new {
+            // New files must have "content"
+            if change.get("content").and_then(|v| v.as_str()).is_none() {
+                return false;
+            }
+        } else {
+            // Existing files must have "edits" array
+            let edits = match change.get("edits").and_then(|v| v.as_array()) {
+                Some(arr) => arr,
+                None => return false,
+            };
+
+            for edit in edits {
+                if edit.get("search").and_then(|v| v.as_str()).is_none() {
+                    return false;
+                }
+                if edit.get("replace").and_then(|v| v.as_str()).is_none() {
+                    return false;
+                }
+            }
+        }
+    }
+
+    true
 }
