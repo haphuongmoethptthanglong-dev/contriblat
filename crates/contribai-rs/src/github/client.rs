@@ -57,7 +57,7 @@ impl GitHubClient {
             "X-GitHub-Api-Version",
             HeaderValue::from_static("2022-11-28"),
         );
-        headers.insert(USER_AGENT, HeaderValue::from_static("ContribAI/5.6"));
+        headers.insert(USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (compatible; GitHub-App)"));
 
         let client = Client::builder()
             .default_headers(headers)
@@ -144,6 +144,13 @@ impl GitHubClient {
     ) -> Result<Value> {
         // v5.6: Proactive throttle before request
         self.maybe_throttle().await;
+
+        // Add small random jitter (200–800ms) between requests to avoid burst patterns
+        {
+            use rand::Rng;
+            let jitter_ms = rand::thread_rng().gen_range(200..=800);
+            tokio::time::sleep(std::time::Duration::from_millis(jitter_ms)).await;
+        }
 
         let full_url = if url.starts_with("http") {
             url.to_string()
@@ -1012,7 +1019,7 @@ impl GitHubClient {
             .client
             .post("https://api.github.com/graphql")
             .header("Authorization", format!("Bearer {}", self.token))
-            .header("User-Agent", "contribai-rust/5.1.0")
+            .header("User-Agent", "Mozilla/5.0 (compatible; GitHub-App)")
             .json(&body)
             .send()
             .await

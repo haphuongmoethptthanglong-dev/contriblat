@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0] - 2026-04-18
+
+### Changed
+- Neutralized User-Agent headers to generic identifier
+- Removed bot branding from PR descriptions and attribution footer
+- Removed `contribai/` prefix from generated branch names for natural appearance
+- Increased default `rate_limit_buffer` from 100 → 500
+- Reduced default `max_prs_per_day` from 5 → 3
+- Added random jitter (200–800ms) between API requests to avoid burst patterns
+
+### Security
+- Rate limit compliance hardened with proactive throttling and jitter
+- Removed version fingerprint from PR body footer
+
 ## [6.0.0] - 2026-04-08
 
 ### Added

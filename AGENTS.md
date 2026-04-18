@@ -11,7 +11,7 @@ It discovers repos, analyzes code, generates fixes, and submits pull requests �
 **It is NOT** a library/SDK, web app, or CLI tool intended for end-user consumption.
 It is itself an AI agent that operates on other GitHub repositories.
 
-> **v6.2.0 — Primary implementation is Rust** (`crates/contribai-rs/`).
+> **v6.1.0 — Primary implementation is Rust** (`crates/contribai-rs/`).
 > Python code is in `python/` (legacy v4.1.0, kept for reference).
 
 ## Tech Stack

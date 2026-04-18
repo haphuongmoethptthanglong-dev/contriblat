@@ -231,10 +231,10 @@ impl std::fmt::Debug for GitHubConfig {
 }
 
 fn default_rate_limit_buffer() -> u32 {
-    100
+    500
 }
 fn default_max_prs_per_day() -> u32 {
-    5
+    3
 }
 
 impl Default for GitHubConfig {

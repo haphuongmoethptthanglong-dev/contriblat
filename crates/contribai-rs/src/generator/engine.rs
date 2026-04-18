@@ -427,7 +427,7 @@ impl<'a> ContributionGenerator<'a> {
         let slug = slug.trim_matches('-');
         let slug = safe_truncate(slug, 40);
 
-        format!("contribai/{}/{}", prefix, slug)
+        format!("{}/{}", prefix, slug)
     }
 
     /// Generate a PR title using the default label format.
@@ -704,7 +704,7 @@ pub(crate) mod tests {
     fn test_generate_branch_name() {
         let f = test_finding();
         let branch = ContributionGenerator::generate_branch_name(&f);
-        assert!(branch.starts_with("contribai/fix/security/"));
+        assert!(branch.starts_with("fix/security/"));
         assert!(branch.contains("sql-injection"));
     }
 
