@@ -13,11 +13,11 @@ OS=$(uname -s | tr "[:upper:]" "[:lower:]")
 ARCH=$(uname -m)
 
 case "$OS" in
-  linux)  BINARY="contribai-linux-x86_64" ;;
+  linux)  BINARY="contribai-${VERSION}-linux-x86_64" ;;
   darwin)
     case "$ARCH" in
-      arm64|aarch64) BINARY="contribai-macos-aarch64" ;;
-      *)             BINARY="contribai-macos-x86_64" ;;
+      arm64|aarch64) BINARY="contribai-${VERSION}-macos-aarch64" ;;
+      *)             BINARY="contribai-${VERSION}-macos-x86_64" ;;
     esac ;;
   *) echo "Unsupported OS: $OS"; exit 1 ;;
 esac
