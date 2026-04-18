@@ -462,7 +462,8 @@ impl Cli {
             Commands::ConfigList => commands::config::run_config_list(self.config.as_deref()),
             Commands::Undo { yes } => commands::undo::run_undo(self.config.as_deref(), yes),
             Commands::Clone { url, path, fork } => {
-                commands::clone::run_clone(&url, path.as_deref(), fork).await
+                commands::clone::run_clone(self.config.as_deref(), &url, path.as_deref(), fork)
+                    .await
             }
             Commands::Completions { shell } => commands::completions::run_completions(shell),
         }

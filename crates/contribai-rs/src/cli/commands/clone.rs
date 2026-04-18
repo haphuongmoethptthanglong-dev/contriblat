@@ -3,9 +3,14 @@
 
 use colored::Colorize;
 
-use crate::cli::print_banner;
+use crate::cli::{create_github, load_config, print_banner};
 
-pub async fn run_clone(url: &str, path: Option<&str>, fork: bool) -> anyhow::Result<()> {
+pub async fn run_clone(
+    config_path: Option<&str>,
+    url: &str,
+    path: Option<&str>,
+    fork: bool,
+) -> anyhow::Result<()> {
     print_banner();
 
     let title = if fork {
@@ -39,7 +44,12 @@ pub async fn run_clone(url: &str, path: Option<&str>, fork: bool) -> anyhow::Res
     println!();
 
     // Step 1: Clone
-    println!("  {} git clone {} {}", "Running:".dimmed(), repo_url, target_dir);
+    println!(
+        "  {} git clone {} {}",
+        "Running:".dimmed(),
+        repo_url,
+        target_dir
+    );
     println!();
 
     let output = std::process::Command::new("git")
@@ -63,32 +73,26 @@ pub async fn run_clone(url: &str, path: Option<&str>, fork: bool) -> anyhow::Res
         return Ok(());
     }
 
-    // Step 2: Get authenticated GitHub username
+    // Step 2: Load config and create GitHub client
+    let config = load_config(config_path)?;
+    let github = create_github(&config)?;
+
+    // Step 3: Get authenticated GitHub username
     println!();
     println!("  {} Fetching GitHub user info...", "🔑".dimmed());
 
-    let user_output = std::process::Command::new("gh")
-        .args(["api", "/user", "--jq", ".login"])
-        .output()?;
+    let user = github
+        .get_authenticated_user()
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to get GitHub user: {}", e))?;
 
-    if !user_output.status.success() {
-        let err = String::from_utf8_lossy(&user_output.stderr);
-        anyhow::bail!(
-            "Failed to get GitHub user. Is `gh` CLI installed and authenticated?\n  {}",
-            err.trim()
-        );
-    }
-
-    let username = String::from_utf8_lossy(&user_output.stdout)
-        .trim()
-        .to_string();
-    if username.is_empty() {
-        anyhow::bail!("Could not determine GitHub username from `gh api /user`");
-    }
+    let username = user["login"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Could not determine GitHub username from API response"))?;
 
     println!("  {} {}", "GitHub user:".dimmed(), username.cyan());
 
-    // Step 3: Create new repo on user's account
+    // Step 4: Create new repo on user's account
     println!(
         "  {} Creating repo {}/{}...",
         "📦".dimmed(),
@@ -96,14 +100,10 @@ pub async fn run_clone(url: &str, path: Option<&str>, fork: bool) -> anyhow::Res
         repo_name
     );
 
-    let create_output = std::process::Command::new("gh")
-        .args(["repo", "create", repo_name, "--private", "--confirm"])
-        .output()?;
-
-    if !create_output.status.success() {
-        let err = String::from_utf8_lossy(&create_output.stderr);
-        anyhow::bail!("Failed to create repo on GitHub: {}", err.trim());
-    }
+    github
+        .create_user_repo(repo_name, true)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to create repo on GitHub: {}", e))?;
 
     println!(
         "  {} Repo {}/{} created",
@@ -112,8 +112,12 @@ pub async fn run_clone(url: &str, path: Option<&str>, fork: bool) -> anyhow::Res
         repo_name
     );
 
-    // Step 4: Set user's repo as origin, keep source as upstream
-    let new_origin = format!("https://github.com/{}/{}.git", username, repo_name);
+    // Step 5: Set user's repo as origin, keep source as upstream
+    // Use token-authenticated URL so push works without gh CLI
+    let new_origin = format!(
+        "https://x-access-token:{}@github.com/{}/{}.git",
+        config.github.token, username, repo_name
+    );
 
     println!("  {} Setting remotes...", "🔗".dimmed());
 
@@ -128,7 +132,7 @@ pub async fn run_clone(url: &str, path: Option<&str>, fork: bool) -> anyhow::Res
         anyhow::bail!("Failed to rename origin to upstream: {}", err.trim());
     }
 
-    // Add user's repo as new origin
+    // Add user's repo as new origin (with embedded token for auth)
     let add = std::process::Command::new("git")
         .args(["remote", "add", "origin", &new_origin])
         .current_dir(&target_dir)
@@ -139,6 +143,8 @@ pub async fn run_clone(url: &str, path: Option<&str>, fork: bool) -> anyhow::Res
         anyhow::bail!("Failed to add new origin: {}", err.trim());
     }
 
+    // Display clean URLs (without token)
+    let display_origin = format!("https://github.com/{}/{}.git", username, repo_name);
     println!(
         "  {} {} → {}",
         "upstream:".dimmed(),
@@ -149,10 +155,10 @@ pub async fn run_clone(url: &str, path: Option<&str>, fork: bool) -> anyhow::Res
         "  {} {} → {}",
         "origin:  ".dimmed(),
         "origin".green(),
-        new_origin
+        display_origin
     );
 
-    // Step 5: Push all branches and tags to new origin
+    // Step 6: Push all branches and tags to new origin
     println!();
     println!("  {} Pushing to origin...", "🚀".dimmed());
 
@@ -175,8 +181,19 @@ pub async fn run_clone(url: &str, path: Option<&str>, fork: bool) -> anyhow::Res
         .output()?;
 
     if !push_tags.status.success() {
+        println!("  {} Failed to push tags (non-fatal)", "⚠️".yellow());
+    }
+
+    // Step 7: Replace token URL with clean URL for safety
+    let clean_origin = format!("https://github.com/{}/{}.git", username, repo_name);
+    let set_url = std::process::Command::new("git")
+        .args(["remote", "set-url", "origin", &clean_origin])
+        .current_dir(&target_dir)
+        .output()?;
+
+    if !set_url.status.success() {
         println!(
-            "  {} Failed to push tags (non-fatal)",
+            "  {} Could not clean origin URL (non-fatal)",
             "⚠️".yellow()
         );
     }

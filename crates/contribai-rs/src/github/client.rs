@@ -976,6 +976,16 @@ impl GitHubClient {
         Ok(data.as_array().cloned().unwrap_or_default())
     }
 
+    /// Create a new repository for the authenticated user.
+    pub async fn create_user_repo(&self, name: &str, private: bool) -> Result<Value> {
+        let body = serde_json::json!({
+            "name": name,
+            "private": private,
+            "auto_init": false,
+        });
+        self.post("/user/repos", &body).await
+    }
+
     /// Delete a repository.
     pub async fn delete_repository(&self, owner: &str, repo: &str) -> Result<()> {
         self.delete(&format!("/repos/{}/{}", owner, repo)).await?;
