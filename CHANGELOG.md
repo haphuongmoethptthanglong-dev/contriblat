@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.0] - 2026-04-18
+
+### Added
+- New `clone` command — clone a target repository to local machine
+- `--fork` (`-f`) flag for `clone` — clones repo, creates a new repo on your GitHub account, and pushes to it (remotes: `origin` → your repo, `upstream` → source repo)
+
+### Fixed
+- Fixed pre-existing test compilation error in `json_parser::validate_change_schema` test
+
 ## [6.1.0] - 2026-04-18
 
 ### Changed

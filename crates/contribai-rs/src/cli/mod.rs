@@ -299,6 +299,20 @@ enum Commands {
         yes: bool,
     },
 
+    /// Clone a target repository to local machine
+    Clone {
+        /// Repository URL (e.g., https://github.com/owner/repo)
+        url: String,
+
+        /// Local directory to clone into (defaults to repo name)
+        #[arg(short, long)]
+        path: Option<String>,
+
+        /// Fork mode — clone, create a new repo on your account, and push to it
+        #[arg(short, long)]
+        fork: bool,
+    },
+
     /// Generate shell completions (bash, zsh, fish, powershell)
     Completions {
         /// Shell type: bash, zsh, fish, powershell, elvish
@@ -447,6 +461,9 @@ impl Cli {
             }
             Commands::ConfigList => commands::config::run_config_list(self.config.as_deref()),
             Commands::Undo { yes } => commands::undo::run_undo(self.config.as_deref(), yes),
+            Commands::Clone { url, path, fork } => {
+                commands::clone::run_clone(&url, path.as_deref(), fork).await
+            }
             Commands::Completions { shell } => commands::completions::run_completions(shell),
         }
     }
