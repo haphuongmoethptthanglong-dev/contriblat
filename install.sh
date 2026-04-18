@@ -1,8 +1,11 @@
 ﻿#!/bin/bash
 set -e
 
-VERSION="v5.2.0"
 REPO="haphuongmoethptthanglong-dev/contriblat"
+VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
+if [ -z "$VERSION" ]; then
+  echo "Failed to fetch latest version"; exit 1
+fi
 INSTALL_DIR="/usr/local/bin"
 
 # Detect OS and arch
