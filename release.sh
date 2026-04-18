@@ -27,12 +27,13 @@ case "$BUMP" in
     *) echo "Usage: $0 [major|minor|patch]  (default: patch)"; exit 1 ;;
 esac
 
-# ── Read current version from Cargo.toml ─────────────────────────────────────
-CURRENT=$(grep '^version' "$CARGO_TOML" | head -1 | sed 's/.*"\(.*\)"/\1/')
-if [ -z "$CURRENT" ]; then
-    error "Could not read version from $CARGO_TOML"
+# ── Read current version from latest git tag ─────────────────────────────────
+LATEST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+if [ -z "$LATEST_TAG" ]; then
+    error "No version tags found (expected vX.Y.Z format)"
 fi
 
+CURRENT="${LATEST_TAG#v}"
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
 
 # ── Bump version ─────────────────────────────────────────────────────────────
@@ -65,7 +66,8 @@ fi
 
 # ── Step 1: Update Cargo.toml ───────────────────────────────────────────────
 step "Updating ${CARGO_TOML} → ${NEW_VERSION}"
-sed -i "0,/^version = \"${CURRENT}\"/s//version = \"${NEW_VERSION}\"/" "$CARGO_TOML"
+CARGO_CURRENT=$(grep '^version' "$CARGO_TOML" | head -1 | sed 's/.*"\(.*\)"/\1/')
+sed -i "0,/^version = \"${CARGO_CURRENT}\"/s//version = \"${NEW_VERSION}\"/" "$CARGO_TOML"
 info "Cargo.toml updated"
 
 # ── Step 2: Update CHANGELOG.md ─────────────────────────────────────────────
