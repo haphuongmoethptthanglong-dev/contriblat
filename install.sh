@@ -2,7 +2,7 @@
 set -e
 
 VERSION="v5.2.0"
-REPO="tang-vu/ContribAI"
+REPO="haphuongmoethptthanglong-dev/contriblat"
 INSTALL_DIR="/usr/local/bin"
 
 # Detect OS and arch
