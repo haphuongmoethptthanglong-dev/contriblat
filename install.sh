@@ -48,8 +48,18 @@ else
   mkdir -p "$INSTALL_DIR"
   mv contribai "$INSTALL_DIR/contribai"
   if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
-    echo "  Add to PATH: export PATH=\"$INSTALL_DIR:\$PATH\""
-    echo "  (add this to your ~/.bashrc or ~/.profile to make it permanent)"
+    SHELL_RC=""
+    if [ -n "$BASH_VERSION" ] || [ "$(basename "$SHELL" 2>/dev/null)" = "bash" ]; then
+      SHELL_RC="$HOME/.bashrc"
+    elif [ -n "$ZSH_VERSION" ] || [ "$(basename "$SHELL" 2>/dev/null)" = "zsh" ]; then
+      SHELL_RC="$HOME/.zshrc"
+    fi
+    if [ -z "$SHELL_RC" ] || [ ! -f "$SHELL_RC" ]; then
+      SHELL_RC="$HOME/.profile"
+    fi
+    echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$SHELL_RC"
+    export PATH="$INSTALL_DIR:$PATH"
+    echo "  Added $INSTALL_DIR to PATH in $SHELL_RC"
   fi
 fi
 
