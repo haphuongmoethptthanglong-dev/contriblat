@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.5.0] - 2026-04-20
 
+## [6.5.0] - 2026-04-20
+
 ### Added
 - Linux aarch64 (arm64) binary in release builds — enables Termux/Android support
 - User Manual section in README with platform table, Termux install guide, quick start, common workflows, environment variables, and troubleshooting
