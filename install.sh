@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+﻿#!/usr/bin/env bash
 set -e
 
 REPO="haphuongmoethptthanglong-dev/contriblat"
@@ -13,7 +13,11 @@ OS=$(uname -s | tr "[:upper:]" "[:lower:]")
 ARCH=$(uname -m)
 
 case "$OS" in
-  linux)  BINARY="contribai-${VERSION}-linux-x86_64" ;;
+  linux)
+    case "$ARCH" in
+      arm64|aarch64) BINARY="contribai-${VERSION}-linux-aarch64" ;;
+      *)             BINARY="contribai-${VERSION}-linux-x86_64" ;;
+    esac ;;
   darwin)
     case "$ARCH" in
       arm64|aarch64) BINARY="contribai-${VERSION}-macos-aarch64" ;;

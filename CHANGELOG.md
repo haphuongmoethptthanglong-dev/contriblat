@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.0] - 2026-04-20
+
+### Added
+- Linux aarch64 (arm64) binary in release builds — enables Termux/Android support
+- User Manual section in README with platform table, Termux install guide, quick start, common workflows, environment variables, and troubleshooting
+
+### Fixed
+- `install.sh`: Use `#!/usr/bin/env bash` shebang for portability (fixes proot-distro/Termux)
+- `install.sh`: Detect `aarch64` architecture on Linux instead of always downloading `x86_64`
+- `release.yml`: Added `aarch64-unknown-linux-gnu` cross-compilation target with gcc-aarch64-linux-gnu
+
 ## [6.4.2] - 2026-04-18
 
 ## [6.2.0] - 2026-04-18

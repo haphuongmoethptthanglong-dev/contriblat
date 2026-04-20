@@ -5,14 +5,14 @@
 **Autonomous AI agent that discovers, analyzes, and submits<br>Pull Requests to open source projects on GitHub.**
 
 [![Rust](https://img.shields.io/badge/Rust-1.75+-f74c00?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![Version](https://img.shields.io/badge/v6.2.0-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/tang-vu/ContribAI/releases)
+[![Version](https://img.shields.io/badge/v6.5.0-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/tang-vu/ContribAI/releases)
 [![License](https://img.shields.io/badge/AGPL--3.0-green?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Tests](https://img.shields.io/badge/602_tests-passing-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
 [![PRs Merged](https://img.shields.io/badge/10_PRs-merged-blueviolet?style=for-the-badge&logo=git&logoColor=white)](HALL_OF_FAME.md)
 
 <br>
 
-[**Getting Started**](#-getting-started) · [**Features**](#-features) · [**Commands**](#-commands) · [**Architecture**](#-architecture) · [**Hall of Fame**](HALL_OF_FAME.md)
+[**Getting Started**](#-getting-started) · [**User Manual**](#-user-manual) · [**Features**](#-features) · [**Commands**](#-commands) · [**Architecture**](#-architecture) · [**Hall of Fame**](HALL_OF_FAME.md)
 
 <br>
 
@@ -129,6 +129,122 @@ discovery:
 See [`config.yaml.template`](config.yaml.template) for all options.
 
 </details>
+
+---
+
+## 📖 User Manual
+
+### Supported Platforms
+
+| Platform | Architecture | Binary | Status |
+|:---------|:-------------|:-------|:------:|
+| **Linux** | x86_64 (amd64) | `contribai-vX.Y.Z-linux-x86_64` | ✅ |
+| **Linux** | aarch64 (arm64) | `contribai-vX.Y.Z-linux-aarch64` | ✅ |
+| **macOS** | x86_64 (Intel) | `contribai-vX.Y.Z-macos-x86_64` | ✅ |
+| **macOS** | aarch64 (Apple Silicon) | `contribai-vX.Y.Z-macos-aarch64` | ✅ |
+| **Windows** | x86_64 | `contribai-vX.Y.Z-windows-x86_64.exe` | ✅ |
+| **Android (Termux)** | aarch64 | Use `linux-aarch64` binary | ✅ |
+
+### Installing on Termux (Android)
+
+ContribAI runs on Android via [Termux](https://termux.dev/) with a proot Linux distribution.
+
+```bash
+# 1. Install Termux from F-Droid (recommended)
+# 2. Inside Termux, install proot-distro and set up Debian:
+pkg update && pkg install proot-distro
+proot-distro install debian
+proot-distro login debian
+
+# 3. Inside Debian, install dependencies:
+apt update && apt install -y curl
+
+# 4. Install ContribAI (auto-detects aarch64):
+curl -fsSL https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.sh | bash
+
+# 5. Set up:
+contribai init
+```
+
+> **Note:** The install script auto-detects your CPU architecture (`x86_64` or `aarch64`) and downloads the correct binary.
+
+### Installing on Desktop (Linux / macOS)
+
+```bash
+# One-line install (auto-detects OS and architecture)
+curl -fsSL https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.sh | bash
+
+# Or build from source
+git clone https://github.com/tang-vu/ContribAI.git && cd ContribAI
+cargo install --path crates/contribai-rs
+```
+
+### Installing on Windows
+
+```powershell
+# PowerShell one-liner
+irm https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.ps1 | iex
+
+# Or build from source
+git clone https://github.com/tang-vu/ContribAI.git; cd ContribAI
+cargo install --path crates/contribai-rs
+```
+
+### Quick Start
+
+```bash
+# 1. Configure (interactive wizard)
+contribai init
+
+# 2. Verify authentication and LLM provider
+contribai login
+
+# 3. Check system health
+contribai doctor
+
+# 4. Analyze a repo (dry-run, no PRs)
+contribai analyze https://github.com/owner/repo
+
+# 5. Start autonomous hunting
+contribai hunt
+```
+
+### Environment Variables
+
+Instead of putting secrets in `config.yaml`, use environment variables:
+
+```bash
+export GITHUB_TOKEN="ghp_..."       # Required: GitHub API token
+export GEMINI_API_KEY="..."         # For Gemini (default provider)
+# Or alternatives:
+export OPENAI_API_KEY="..."         # For OpenAI
+export ANTHROPIC_API_KEY="..."      # For Anthropic
+```
+
+### Common Workflows
+
+| Goal | Command |
+|:-----|:--------|
+| Discover repos and submit PRs | `contribai hunt` |
+| Target a specific repository | `contribai target <url>` |
+| Solve a specific GitHub issue | `contribai solve <issue_url>` |
+| Monitor your open PRs | `contribai patrol` |
+| View contribution stats | `contribai stats` |
+| Browse interactively (TUI) | `contribai interactive` |
+| Start the web dashboard | `contribai web-server` |
+| Run on a schedule | `contribai schedule` |
+| Use as MCP tool server | `contribai mcp-server` |
+
+### Troubleshooting
+
+| Problem | Solution |
+|:--------|:---------|
+| `Permission denied` on install | Run with `sudo` or install to a user-writable path |
+| Wrong binary architecture | Verify with `uname -m` — should show `x86_64` or `aarch64` |
+| `GITHUB_TOKEN` not found | Set via `export GITHUB_TOKEN=...` or in `config.yaml` |
+| Rate limited by GitHub | Increase `rate_limit_buffer` in config, reduce `max_prs_per_day` |
+| LLM API errors | Run `contribai login` to verify provider configuration |
+| Termux: `bash not found` | Use `proot-distro login debian` first, then install |
 
 ---
 
@@ -261,7 +377,7 @@ contribai notify-test                 # Test Slack/Discord/Telegram
 
 ```
 ContribAI/
-├── crates/contribai-rs/src/        ← Rust v6.2.0 (primary)
+├── crates/contribai-rs/src/        ← Rust v6.5.0 (primary)
 │   ├── cli/                        40+ commands + ratatui TUI
 │   ├── core/                       Config, events, error types
 │   ├── github/                     REST v3 + GraphQL client
