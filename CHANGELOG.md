@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.6.0] - 2026-04-25
+
 ### Added
 - New `--self` flag for `hunt` command — autonomous discovery mode that clones repos locally and pushes fixes to private repos instead of creating PRs on upstream
 - `SelfModeHandler` in `orchestrator/self_mode.rs` — handles clone, private remote setup, date-prefixed branch creation (DD-MM-YYYY), per-fix commits, and push
