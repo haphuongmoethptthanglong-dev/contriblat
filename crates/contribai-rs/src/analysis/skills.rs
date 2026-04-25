@@ -175,6 +175,17 @@ pub fn builtin_skills() -> Vec<AnalysisSkill> {
             frameworks: vec![],
             priority: 5,
         },
+        // Output compression
+        AnalysisSkill {
+            name: "caveman_compression".into(),
+            description: "Ultra-compressed LLM output (~75% token reduction). Drops filler, \
+                          hedging, pleasantries while keeping full technical accuracy. \
+                          Configurable intensity: lite/full/ultra"
+                .into(),
+            languages: vec![],
+            frameworks: vec![],
+            priority: 10, // lowest — applied as post-processing layer
+        },
     ]
 }
 

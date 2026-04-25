@@ -10,6 +10,7 @@ use std::time::Instant;
 use tracing::{debug, info, warn};
 
 use super::ast_intel::AstIntel;
+use super::caveman;
 use super::compressor::ContextCompressor;
 use super::repo_map;
 use super::skills;
@@ -146,6 +147,13 @@ impl<'a> CodeAnalyzer<'a> {
             language = language,
             "Active analysis skills"
         );
+
+        if self.config.caveman_mode.is_active() {
+            info!(
+                mode = %self.config.caveman_mode,
+                "🦴 Caveman output compression enabled — ~75% token savings"
+            );
+        }
 
         // 7. Build context and run LLM analysis
         let context = self.build_context(repo, &file_contents, &all_symbols, &top_files);
@@ -304,6 +312,21 @@ impl<'a> CodeAnalyzer<'a> {
              file_path, line_start, line_end, suggestion, confidence (0-1).",
             name
         );
+
+        // Caveman output compression — inject terse-response rules when active
+        let base_system_prompt = if let Some(caveman_rules) =
+            caveman::caveman_system_prompt(self.config.caveman_mode)
+        {
+            info!(
+                analyzer = name,
+                mode = %self.config.caveman_mode,
+                "🦴 Caveman compression active"
+            );
+            format!("{base_system_prompt}\n\n{caveman_rules}")
+        } else {
+            base_system_prompt
+        };
+
         let system_prompt = hardened_system_prompt(&base_system_prompt);
 
         let prompt = format!(

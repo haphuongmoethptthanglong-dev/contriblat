@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.7.0] - 2026-04-25
+
+### Added
+- **Caveman output compression** — new `analysis/caveman.rs` module inspired by [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman), cuts ~75% of LLM output tokens while preserving full technical accuracy
+- `CavemanMode` enum (`Off`/`Lite`/`Full`/`Ultra`) with serde support and configurable via `analysis.caveman_mode` in `config.yaml`
+- `caveman_system_prompt()` builder — generates intensity-specific terse-response rules with auto-clarity and boundary guards
+- `caveman_compression` as skill #18 in progressive skills registry (universal, priority 10)
+- Caveman rules injected into analyzer LLM system prompt when mode is active (`run_analyzer()`)
+- `.devin/skills/caveman/SKILL.md` — Devin skill integration for caveman communication mode
+- 10 new unit tests for caveman module (serde roundtrip, display, prompt content per level)
+
 ## [6.6.0] - 2026-04-25
 
 ### Added

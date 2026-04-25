@@ -53,7 +53,8 @@ ContribAI/
 │   │   ├── analysis/
 │   │   │   ├── analyzer.rs     7 analyzers (22 file extensions)
 │   │   │   ├── ast_intel.rs    tree-sitter AST (13 languages)
-│   │   │   ├── skills.rs       17 progressive skills
+│   │   │   ├── caveman.rs      caveman output compression (lite/full/ultra)
+│   │   │   ├── skills.rs       18 progressive skills
 │   │   │   └── context_compressor.rs
 │   │   ├── generator/
 │   │   │   ├── engine.rs       code generation
@@ -97,7 +98,7 @@ CLI → Pipeline → Middleware Chain → Analysis → Generation → PR → CI 
 1. **CLI (40+ commands)** — clap derive + dialoguer menu (`cli/mod.rs`)
 2. **Interactive TUI** — ratatui 4-tab UI: Dashboard/PRs/Repos/Actions (`cli/tui.rs`)
 3. **Middleware Chain** — 5 ordered middlewares (`orchestrator/pipeline.rs`)
-4. **Progressive Skills** — 17 analysis skills loaded on-demand (`analysis/skills.rs`)
+4. **Progressive Skills** — 18 analysis skills loaded on-demand (`analysis/skills.rs`)
 5. **Sub-Agent Registry** — 5 agents with parallel execution (`llm/agents.rs`)
 6. **Tool Protocol** — MCP-inspired tool interface (`tools/protocol.rs`)
 7. **Outcome Learning** — Tracks PR outcomes per-repo (`orchestrator/memory.rs`)
@@ -113,6 +114,7 @@ CLI → Pipeline → Middleware Chain → Analysis → Generation → PR → CI 
 17. **Cross-file Import Resolution** — 5-language 1-hop import resolution (`analysis/ast_intel.rs`)
 18. **Outcome-Aware Scoring** — 8-check quality gate including repo outcome history (`generator/scorer.rs`)
 19. **Closed-PR Analysis** — Patrol fetches review feedback for rejected PRs (`pr/patrol.rs`)
+20. **Caveman Output Compression** — LLM output token reduction (~75%) via terse-response prompt injection (`analysis/caveman.rs`)
 
 ## Code Conventions (Rust)
 

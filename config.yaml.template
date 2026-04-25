@@ -35,6 +35,9 @@ analysis:
     - "vendor/*"
     - "node_modules/*"
     - "*.lock"
+  # Caveman output compression — cuts ~75% LLM output tokens, full accuracy kept.
+  # Values: off (default), lite, full, ultra
+  caveman_mode: "off"
 
 contribution:
   enabled_types:

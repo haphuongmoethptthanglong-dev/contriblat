@@ -2,6 +2,7 @@
 
 pub mod analyzer;
 pub mod ast_intel;
+pub mod caveman;
 pub mod compressor;
 pub mod language_rules;
 pub mod repo_intel;

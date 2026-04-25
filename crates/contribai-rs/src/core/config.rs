@@ -398,6 +398,10 @@ pub struct AnalysisConfig {
     pub skip_patterns: Vec<String>,
     #[serde(default = "default_max_context_tokens")]
     pub max_context_tokens: usize,
+    /// Caveman output compression mode (off/lite/full/ultra).
+    /// Cuts ~75% of LLM output tokens while keeping full technical accuracy.
+    #[serde(default)]
+    pub caveman_mode: crate::analysis::caveman::CavemanMode,
 }
 
 fn default_analyzers() -> Vec<String> {
@@ -421,6 +425,7 @@ impl Default for AnalysisConfig {
             max_file_size_kb: default_max_file_size_kb(),
             skip_patterns: vec![],
             max_context_tokens: default_max_context_tokens(),
+            caveman_mode: crate::analysis::caveman::CavemanMode::default(),
         }
     }
 }
