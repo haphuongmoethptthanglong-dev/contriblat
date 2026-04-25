@@ -5,7 +5,7 @@
 **Autonomous AI agent that discovers, analyzes, and submits<br>Pull Requests to open source projects on GitHub.**
 
 [![Rust](https://img.shields.io/badge/Rust-1.75+-f74c00?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![Version](https://img.shields.io/badge/v6.6.0-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/tang-vu/ContribAI/releases)
+[![Version](https://img.shields.io/badge/v6.6.0-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/haphuongmoethptthanglong-dev/contriblat/releases)
 [![License](https://img.shields.io/badge/AGPL--3.0-green?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Tests](https://img.shields.io/badge/602_tests-passing-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
 [![PRs Merged](https://img.shields.io/badge/10_PRs-merged-blueviolet?style=for-the-badge&logo=git&logoColor=white)](HALL_OF_FAME.md)
@@ -78,13 +78,13 @@ Set it up once. Wake up to merged PRs.
 
 ```bash
 # Build from source (recommended)
-git clone https://github.com/tang-vu/ContribAI.git && cd ContribAI
+git clone https://github.com/haphuongmoethptthanglong-dev/contriblat.git && cd contriblat
 cargo install --path crates/contribai-rs
 
 # Or one-line install
-curl -fsSL https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/haphuongmoethptthanglong-dev/contriblat/main/install.sh | bash
 # Windows:
-irm https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/haphuongmoethptthanglong-dev/contriblat/main/install.ps1 | iex
 ```
 
 ### Configure
@@ -161,7 +161,7 @@ proot-distro login debian
 apt update && apt install -y curl
 
 # 4. Install ContribAI (auto-detects aarch64):
-curl -fsSL https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/haphuongmoethptthanglong-dev/contriblat/main/install.sh | bash
 
 # 5. Set up:
 contribai init
@@ -173,10 +173,10 @@ contribai init
 
 ```bash
 # One-line install (auto-detects OS and architecture)
-curl -fsSL https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/haphuongmoethptthanglong-dev/contriblat/main/install.sh | bash
 
 # Or build from source
-git clone https://github.com/tang-vu/ContribAI.git && cd ContribAI
+git clone https://github.com/haphuongmoethptthanglong-dev/contriblat.git && cd contriblat
 cargo install --path crates/contribai-rs
 ```
 
@@ -184,10 +184,10 @@ cargo install --path crates/contribai-rs
 
 ```powershell
 # PowerShell one-liner
-irm https://raw.githubusercontent.com/tang-vu/ContribAI/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/haphuongmoethptthanglong-dev/contriblat/main/install.ps1 | iex
 
 # Or build from source
-git clone https://github.com/tang-vu/ContribAI.git; cd ContribAI
+git clone https://github.com/haphuongmoethptthanglong-dev/contriblat.git; cd contriblat
 cargo install --path crates/contribai-rs
 ```
 
@@ -380,7 +380,7 @@ contribai notify-test                 # Test Slack/Discord/Telegram
 
 ```
 ContribAI/
-├── crates/contribai-rs/src/        ← Rust v6.5.0 (primary)
+├── crates/contribai-rs/src/        ← Rust v6.6.0 (primary)
 │   ├── cli/                        40+ commands + ratatui TUI
 │   ├── core/                       Config, events, error types
 │   ├── github/                     REST v3 + GraphQL client
@@ -483,6 +483,6 @@ docker compose up -d dashboard scheduler  # Dashboard + cron scheduler
 
 **Built with Rust 🦀 and LLMs 🤖**
 
-[Releases](https://github.com/tang-vu/ContribAI/releases) · [Issues](https://github.com/tang-vu/ContribAI/issues) · [Hall of Fame](HALL_OF_FAME.md)
+[Releases](https://github.com/haphuongmoethptthanglong-dev/contriblat/releases) · [Issues](https://github.com/haphuongmoethptthanglong-dev/contriblat/issues) · [Hall of Fame](HALL_OF_FAME.md)
 
 </div>
