@@ -321,6 +321,13 @@ enum Commands {
         fork: bool,
     },
 
+    /// Update ContribAI to the latest version from remote 'my' (curl | bash installer)
+    Update {
+        /// Skip confirmation prompt
+        #[arg(short, long)]
+        yes: bool,
+    },
+
     /// Generate shell completions (bash, zsh, fish, powershell)
     Completions {
         /// Shell type: bash, zsh, fish, powershell, elvish
@@ -479,6 +486,7 @@ impl Cli {
                 commands::clone::run_clone(self.config.as_deref(), &url, path.as_deref(), fork)
                     .await
             }
+            Commands::Update { yes } => commands::update::run_update(yes).await,
             Commands::Completions { shell } => commands::completions::run_completions(shell),
         }
     }

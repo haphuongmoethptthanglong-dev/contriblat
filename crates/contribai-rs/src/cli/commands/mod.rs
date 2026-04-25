@@ -31,5 +31,6 @@ pub mod system_status;
 pub mod target;
 pub mod templates;
 pub mod undo;
+pub mod update;
 pub mod watchlist;
 pub mod web_server;
