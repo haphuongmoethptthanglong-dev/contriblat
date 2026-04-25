@@ -115,6 +115,15 @@ pub fn print_config_summary(config: &ContribAIConfig, dry_run: bool) {
 
 /// Print pipeline result.
 pub fn print_result(result: &contribai::orchestrator::pipeline::PipelineResult, dry_run: bool) {
+    print_result_ext(result, dry_run, false);
+}
+
+/// Print pipeline result with optional self-mode display.
+pub fn print_result_ext(
+    result: &contribai::orchestrator::pipeline::PipelineResult,
+    dry_run: bool,
+    self_mode: bool,
+) {
     use colored::Colorize;
     println!("\n{}", "━".repeat(50).dimmed());
 
@@ -134,10 +143,18 @@ pub fn print_result(result: &contribai::orchestrator::pipeline::PipelineResult, 
         "  ⚙️ Contributions generated: {}",
         result.contributions_generated.to_string().cyan()
     );
-    println!(
-        "  🎉 PRs created:            {}",
-        result.prs_created.to_string().green().bold()
-    );
+
+    if self_mode {
+        println!(
+            "  🚀 Commits pushed:         {}",
+            result.commits_pushed.to_string().green().bold()
+        );
+    } else {
+        println!(
+            "  🎉 PRs created:            {}",
+            result.prs_created.to_string().green().bold()
+        );
+    }
 
     if !result.errors.is_empty() {
         println!(

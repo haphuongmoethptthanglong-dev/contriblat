@@ -85,6 +85,8 @@ pub struct PipelineResult {
     pub findings_total: usize,
     pub contributions_generated: usize,
     pub prs_created: usize,
+    /// Commits pushed in self-mode (hunt --self).
+    pub commits_pushed: usize,
     pub errors: Vec<String>,
 }
 
@@ -1590,6 +1592,307 @@ impl<'a> ContribPipeline<'a> {
         }
 
         Ok(result)
+    }
+
+    /// Self-mode hunt: discover repos, analyze, generate fixes, clone locally
+    /// and push to private repos instead of creating PRs.
+    pub async fn hunt_self(
+        &self,
+        rounds: u32,
+        delay_sec: u64,
+        dry_run: bool,
+    ) -> Result<PipelineResult> {
+        use crate::orchestrator::self_mode::SelfModeHandler;
+
+        let mut total = PipelineResult::default();
+
+        // Initialize self-mode handler (fetches authenticated user)
+        let handler = SelfModeHandler::new(self.github, &self.config.github.token)
+            .await
+            .map_err(|e| crate::core::error::ContribError::Config(format!("Self-mode init: {}", e)))?;
+
+        info!(
+            user = %handler.username(),
+            rounds,
+            delay_sec,
+            "🔥 Hunt self-mode started — fixes pushed to private repos"
+        );
+
+        let (cfg_min, cfg_max) = (
+            self.config.discovery.stars_min,
+            self.config.discovery.stars_max,
+        );
+        let star_tiers = [
+            (cfg_min, cfg_max),
+            (100i64, 1000i64),
+            (1000i64, 5000i64),
+            (5000i64, 20000i64),
+            (500i64, 3000i64),
+        ];
+        let sort_orders = ["stars", "updated", "help-wanted-issues", "stars", "updated"];
+        let langs = self.config.discovery.languages.clone();
+        let all_languages = langs.clone();
+
+        for rnd in 1..=rounds {
+            if !self.check_circuit() {
+                warn!("Circuit breaker open — stopping self-mode hunt");
+                total.errors.push("Circuit breaker open".to_string());
+                break;
+            }
+
+            let mut hunt_langs = if rnd % 2 == 0 {
+                all_languages.clone()
+            } else {
+                langs.clone()
+            };
+            let rotate_by = (rnd as usize) % hunt_langs.len().max(1);
+            hunt_langs.rotate_left(rotate_by);
+
+            let stars = star_tiers[((rnd - 1) as usize) % star_tiers.len()];
+            let sort = sort_orders[((rnd - 1) as usize) % sort_orders.len()];
+            let page = rnd;
+            let criteria = DiscoveryCriteria {
+                languages: hunt_langs.iter().take(2).cloned().collect(),
+                stars_min: stars.0,
+                stars_max: stars.1,
+                min_last_activity_days: 7,
+                max_results: 10,
+                sort: Some(sort.to_string()),
+                page: Some(page),
+                ..Default::default()
+            };
+
+            info!(
+                round = rnd,
+                total_rounds = rounds,
+                langs = %hunt_langs.iter().take(2).cloned().collect::<Vec<_>>().join("/"),
+                "🔥 Self-mode hunt round"
+            );
+
+            let discovery = RepoDiscovery::new(self.github, &self.config.discovery);
+            let repos = match discovery.discover(Some(&criteria)).await {
+                Ok(r) => r,
+                Err(e) => {
+                    warn!("Discovery failed round {}: {}", rnd, e);
+                    if rnd < rounds {
+                        tokio::time::sleep(std::time::Duration::from_secs(delay_sec)).await;
+                    }
+                    continue;
+                }
+            };
+
+            if repos.is_empty() {
+                info!("No repos found this round");
+                if rnd < rounds {
+                    tokio::time::sleep(std::time::Duration::from_secs(delay_sec)).await;
+                }
+                continue;
+            }
+
+            let max_targets = self.config.pipeline.max_repos_per_run;
+            let selected: Vec<_> = repos.into_iter().take(max_targets).collect();
+
+            for repo in &selected {
+                if self
+                    .memory
+                    .has_analyzed_since(&repo.full_name, 7)
+                    .unwrap_or(false)
+                {
+                    continue;
+                }
+
+                let rr = self
+                    .hunt_process_repo_self(repo, dry_run, &handler)
+                    .await;
+                total.repos_analyzed += rr.repos_analyzed;
+                total.findings_total += rr.findings_total;
+                total.contributions_generated += rr.contributions_generated;
+                total.commits_pushed += rr.commits_pushed;
+                total.errors.extend(rr.errors);
+            }
+
+            if rnd < rounds {
+                info!(secs = delay_sec, "⏳ Waiting before next round...");
+                tokio::time::sleep(std::time::Duration::from_secs(delay_sec)).await;
+            }
+        }
+
+        info!(
+            repos = total.repos_analyzed,
+            commits = total.commits_pushed,
+            findings = total.findings_total,
+            "🏁 Self-mode hunt complete"
+        );
+
+        Ok(total)
+    }
+
+    /// Process a single repo in self-mode: analyze → generate → clone → commit → push.
+    async fn hunt_process_repo_self(
+        &self,
+        repo: &Repository,
+        dry_run: bool,
+        handler: &crate::orchestrator::self_mode::SelfModeHandler<'_>,
+    ) -> PipelineResult {
+        let mut result = PipelineResult {
+            repos_analyzed: 1,
+            ..PipelineResult::default()
+        };
+
+        info!(repo = %repo.full_name, "📦 Self-mode processing");
+
+        // ── Analyze ──────────────────────────────────────────────────
+        let analyzer = CodeAnalyzer::new(self.llm, self.github, &self.config.analysis);
+        let analysis = match analyzer.analyze(repo).await {
+            Ok(a) => a,
+            Err(e) => {
+                result.errors.push(format!("{}: {}", repo.full_name, e));
+                self.circuit_breaker.record_failure();
+                return result;
+            }
+        };
+
+        result.findings_total = analysis.findings.len();
+        self.circuit_breaker.record_success();
+
+        let _ = self.memory.record_analysis(
+            &repo.full_name,
+            repo.language.as_deref().unwrap_or("unknown"),
+            repo.stars,
+            analysis.findings.len() as i64,
+        );
+
+        if analysis.findings.is_empty() {
+            info!(repo = %repo.full_name, "✅ No findings");
+            return result;
+        }
+
+        // ── Filter & limit findings ─────────────────────────────────
+        let empty_titles: HashSet<String> = HashSet::new();
+        let findings = self.filter_findings(&analysis, &empty_titles);
+        let findings: Vec<_> = findings.into_iter().take(2).collect();
+
+        if findings.is_empty() {
+            return result;
+        }
+
+        // ── Build repo context ──────────────────────────────────────
+        let file_tree = self
+            .github
+            .get_file_tree(&repo.owner, &repo.name, None)
+            .await
+            .unwrap_or_default();
+
+        let mut relevant_files: HashMap<String, String> = HashMap::new();
+        for finding in &findings {
+            if !finding.file_path.is_empty() && !relevant_files.contains_key(&finding.file_path) {
+                if let Ok(content) = self
+                    .github
+                    .get_file_content(&repo.owner, &repo.name, &finding.file_path, None)
+                    .await
+                {
+                    relevant_files.insert(finding.file_path.clone(), content);
+                }
+            }
+        }
+
+        let mut symbol_map: HashMap<String, Vec<crate::core::models::Symbol>> = HashMap::new();
+        for (file_path, content) in &relevant_files {
+            if let Ok(symbols) =
+                crate::analysis::ast_intel::AstIntel::extract_symbols(content, file_path)
+            {
+                if !symbols.is_empty() {
+                    symbol_map.insert(file_path.clone(), symbols);
+                }
+            }
+        }
+
+        let repo_context = crate::core::models::RepoContext {
+            repo: repo.clone(),
+            file_tree,
+            readme_content: None,
+            contributing_guide: None,
+            relevant_files,
+            open_issues: Vec::new(),
+            coding_style: None,
+            symbol_map,
+            resolved_imports: HashMap::new(),
+            file_ranks: HashMap::new(),
+        };
+
+        // ── Generate contributions ──────────────────────────────────
+        let generator = ContributionGenerator::new(self.llm, &self.config.contribution);
+        let mut valid_contributions: Vec<Contribution> = Vec::new();
+
+        for finding in &findings {
+            match generator.generate(finding, &repo_context).await {
+                Ok(Some(contribution)) => {
+                    valid_contributions.push(contribution);
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    result.errors.push(format!("Generation error: {}", e));
+                }
+            }
+        }
+
+        if valid_contributions.is_empty() {
+            return result;
+        }
+
+        result.contributions_generated = valid_contributions.len();
+
+        if dry_run {
+            info!(
+                repo = %repo.full_name,
+                contributions = valid_contributions.len(),
+                "🏃 [DRY RUN] Would clone and push {} fix(es)",
+                valid_contributions.len()
+            );
+            return result;
+        }
+
+        // ── Self-mode: clone → remote → branch → commit → push ─────
+        let local_path = match handler.clone_repo_locally(&repo.owner, &repo.name) {
+            Ok(p) => p,
+            Err(e) => {
+                result.errors.push(format!("Clone failed: {}", e));
+                return result;
+            }
+        };
+
+        if let Err(e) = handler.ensure_private_remote(&local_path, &repo.name).await {
+            result.errors.push(format!("Remote setup failed: {}", e));
+            return result;
+        }
+
+        let branch_name = match handler.checkout_date_branch(&local_path) {
+            Ok(b) => b,
+            Err(e) => {
+                result.errors.push(format!("Branch creation failed: {}", e));
+                return result;
+            }
+        };
+
+        for contribution in &valid_contributions {
+            match handler.commit_and_push_contribution(&local_path, contribution, &branch_name) {
+                Ok(n) => {
+                    result.commits_pushed += n;
+                    info!(
+                        repo = %repo.full_name,
+                        branch = %branch_name,
+                        commits = n,
+                        "✅ Pushed fix: {}",
+                        contribution.title
+                    );
+                }
+                Err(e) => {
+                    result.errors.push(format!("Commit/push failed: {}", e));
+                }
+            }
+        }
+
+        result
     }
 
     /// Filter findings: remove protected files, skip extensions, skip directories, dedup.

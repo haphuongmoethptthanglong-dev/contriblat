@@ -976,6 +976,13 @@ impl GitHubClient {
         Ok(data.as_array().cloned().unwrap_or_default())
     }
 
+    /// Check if a repository exists (returns true on 200, false on 404).
+    pub async fn check_repo_exists(&self, owner: &str, repo: &str) -> bool {
+        self.get(&format!("/repos/{}/{}", owner, repo))
+            .await
+            .is_ok()
+    }
+
     /// Create a new repository for the authenticated user.
     pub async fn create_user_repo(&self, name: &str, private: bool) -> Result<Value> {
         let body = serde_json::json!({

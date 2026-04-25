@@ -4,7 +4,7 @@ use colored::Colorize;
 
 use crate::cli::{
     create_github, create_llm, create_memory, load_config, print_banner, print_config_summary,
-    print_result,
+    print_result, print_result_ext,
 };
 
 pub async fn run_hunt(
@@ -14,11 +14,19 @@ pub async fn run_hunt(
     language: Option<String>,
     dry_run: bool,
     approve: bool,
+    self_mode: bool,
 ) -> anyhow::Result<()> {
     print_banner();
     let config = load_config(config_path)?;
     print_config_summary(&config, dry_run);
 
+    if self_mode {
+        println!(
+            "   {}: {}",
+            "Self mode".yellow().bold(),
+            "clone & push to private repos (no PRs)".dimmed()
+        );
+    }
     println!(
         "   {}: {} rounds",
         "Hunt mode".yellow().bold(),
@@ -58,8 +66,13 @@ pub async fn run_hunt(
     );
     pipeline.set_approve_high_risk(approve);
 
-    let total = pipeline.hunt(rounds, delay as u64, dry_run, "both").await?;
+    if self_mode {
+        let total = pipeline.hunt_self(rounds, delay as u64, dry_run).await?;
+        print_result_ext(&total, dry_run, true);
+    } else {
+        let total = pipeline.hunt(rounds, delay as u64, dry_run, "both").await?;
+        print_result(&total, dry_run);
+    }
 
-    print_result(&total, dry_run);
     Ok(())
 }

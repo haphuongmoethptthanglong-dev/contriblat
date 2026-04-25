@@ -207,3 +207,119 @@ async fn test_hunt_empty_discovery_continues() {
     assert_eq!(result.prs_created, 0);
     assert!(result.errors.is_empty(), "No errors expected");
 }
+
+// ── Test: Self-mode empty discovery returns gracefully ───────────
+
+#[tokio::test]
+async fn test_hunt_self_empty_discovery_continues() {
+    let server = wiremock::MockServer::start().await;
+    let harness = HuntTestHarness::new();
+    let github = harness.github_client(&server.uri());
+
+    // Mock /user for SelfModeHandler init
+    mock_github::mock_authenticated_user(&server).await;
+
+    // Mock search returning empty results
+    mock_github::mock_search_repos(&server, vec![]).await;
+
+    let pipeline = ContribPipeline::new(
+        &harness.config,
+        &github,
+        &harness.llm,
+        &harness.memory,
+        &harness.event_bus,
+    );
+
+    // 2 rounds, both empty → should complete without error
+    let result = pipeline.hunt_self(2, 0, true).await.expect("hunt_self");
+
+    assert_eq!(result.repos_analyzed, 0);
+    assert_eq!(result.commits_pushed, 0);
+    assert_eq!(result.prs_created, 0, "Self-mode should never create PRs");
+    assert!(result.errors.is_empty(), "No errors expected");
+}
+
+// ── Test: Self-mode ignores daily PR limit ───────────────────────
+
+#[tokio::test]
+async fn test_hunt_self_ignores_daily_pr_limit() {
+    let server = wiremock::MockServer::start().await;
+    let harness = HuntTestHarness::new();
+    let github = harness.github_client(&server.uri());
+
+    // Mock /user for SelfModeHandler init
+    mock_github::mock_authenticated_user(&server).await;
+
+    // Pre-populate memory with max_prs_per_day PRs for today
+    for i in 1..=5 {
+        harness
+            .memory
+            .record_pr(
+                &format!("owner/repo-{}", i),
+                i as i64,
+                &format!("https://github.com/owner/repo-{}/pull/{}", i, i),
+                &format!("PR #{}", i),
+                "quality",
+                "fix/test",
+                "fork/repo",
+            )
+            .expect("record pr");
+    }
+
+    // Mock search returning empty results (we just want to verify it runs)
+    mock_github::mock_search_repos(&server, vec![]).await;
+
+    let pipeline = ContribPipeline::new(
+        &harness.config,
+        &github,
+        &harness.llm,
+        &harness.memory,
+        &harness.event_bus,
+    );
+
+    // Self-mode should NOT be stopped by daily PR limit
+    let result = pipeline.hunt_self(1, 0, true).await.expect("hunt_self");
+
+    // Even though daily limit is hit, self-mode should complete (just no repos found)
+    assert!(
+        result.errors.is_empty(),
+        "Self-mode should not error on daily PR limit"
+    );
+}
+
+// ── Test: Self-mode skips recently analyzed repos ────────────────
+
+#[tokio::test]
+async fn test_hunt_self_skips_recently_analyzed_repos() {
+    let server = wiremock::MockServer::start().await;
+    let harness = HuntTestHarness::new();
+    let github = harness.github_client(&server.uri());
+
+    // Mock /user for SelfModeHandler init
+    mock_github::mock_authenticated_user(&server).await;
+
+    // Pre-record the repo as analyzed today
+    harness
+        .memory
+        .record_analysis("owner-a/ttl-test", "python", 1000, 3)
+        .expect("record analysis");
+
+    // Mock search returning that repo
+    mock_github::mock_search_repos(&server, vec![fake_repo("owner-a", "ttl-test", 1000)]).await;
+
+    let pipeline = ContribPipeline::new(
+        &harness.config,
+        &github,
+        &harness.llm,
+        &harness.memory,
+        &harness.event_bus,
+    );
+
+    let result = pipeline.hunt_self(1, 0, true).await.expect("hunt_self");
+
+    // Repo was analyzed today → TTL not expired → skipped
+    assert_eq!(
+        result.repos_analyzed, 0,
+        "Self-mode should skip repos analyzed within TTL window"
+    );
+}

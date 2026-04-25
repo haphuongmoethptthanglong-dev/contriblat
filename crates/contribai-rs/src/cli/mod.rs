@@ -13,7 +13,7 @@ pub mod wizard;
 // Re-export common helpers for command handlers
 pub use common::{
     create_github, create_llm, create_memory, load_config, parse_github_url, print_banner,
-    print_config_summary, print_result,
+    print_config_summary, print_result, print_result_ext,
 };
 
 use clap::{Parser, Subcommand};
@@ -82,6 +82,10 @@ enum Commands {
         /// Approve HIGH risk changes for auto-submission
         #[arg(long)]
         approve: bool,
+
+        /// Self-mode: discover & solve, but push to private repos instead of creating PRs
+        #[arg(long = "self")]
+        self_mode: bool,
     },
 
     /// Monitor open PRs for review comments and respond
@@ -351,6 +355,7 @@ impl Cli {
                 language,
                 dry_run,
                 approve,
+                self_mode,
             } => {
                 commands::hunt::run_hunt(
                     self.config.as_deref(),
@@ -359,6 +364,7 @@ impl Cli {
                     language,
                     dry_run,
                     approve,
+                    self_mode,
                 )
                 .await
             }
@@ -558,6 +564,7 @@ fn run_interactive_menu() -> anyhow::Result<Commands> {
             language: None,
             dry_run: false,
             approve: false,
+            self_mode: false,
         },
         7 => Commands::Stats,
         8 => Commands::Leaderboard { limit: 20 },
