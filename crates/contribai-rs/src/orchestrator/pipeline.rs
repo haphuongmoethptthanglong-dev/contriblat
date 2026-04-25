@@ -1727,6 +1727,52 @@ impl<'a> ContribPipeline<'a> {
         Ok(total)
     }
 
+    /// Run pipeline on a **specific** repo in self-mode (no discovery).
+    ///
+    /// Used by `contribai target <url> --self`.
+    pub async fn run_targeted_self(
+        &self,
+        owner: &str,
+        name: &str,
+        dry_run: bool,
+    ) -> Result<PipelineResult> {
+        use crate::orchestrator::self_mode::SelfModeHandler;
+
+        let run_id = self.memory.start_run()?;
+        let full_name = format!("{}/{}", owner, name);
+
+        info!(repo = %full_name, dry_run, "🎯 Self-mode targeting specific repo");
+
+        self.event_bus
+            .emit(
+                Event::new(EventType::PipelineStart, "pipeline.run_targeted_self")
+                    .with_data("repo", full_name.as_str())
+                    .with_data("dry_run", dry_run)
+                    .with_data("self_mode", true),
+            )
+            .await;
+
+        let handler = SelfModeHandler::new(self.github, &self.config.github.token)
+            .await
+            .map_err(|e| {
+                crate::core::error::ContribError::Config(format!("Self-mode init: {}", e))
+            })?;
+
+        let repo = self.github.get_repo_details(owner, name).await?;
+        let result = self.hunt_process_repo_self(&repo, dry_run, &handler).await;
+
+        self.memory.finish_run(
+            run_id,
+            result.repos_analyzed as i64,
+            result.commits_pushed as i64,
+            result.findings_total as i64,
+            result.errors.len() as i64,
+        )?;
+
+        self.maybe_dream();
+        Ok(result)
+    }
+
     /// Process a single repo in self-mode: analyze → generate → clone → commit → push.
     async fn hunt_process_repo_self(
         &self,

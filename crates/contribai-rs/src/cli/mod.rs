@@ -103,6 +103,10 @@ enum Commands {
         /// Dry run
         #[arg(long)]
         dry_run: bool,
+
+        /// Self-mode: clone, push fixes to a private repo on your account instead of creating a PR
+        #[arg(long = "self")]
+        self_mode: bool,
     },
 
     /// Sweep all repositories in the watchlist (config.discovery.watchlist)
@@ -374,8 +378,12 @@ impl Cli {
             Commands::Watchlist { dry_run } => {
                 commands::watchlist::run_watchlist(self.config.as_deref(), dry_run).await
             }
-            Commands::Target { url, dry_run } => {
-                commands::target::run_target(self.config.as_deref(), url, dry_run).await
+            Commands::Target {
+                url,
+                dry_run,
+                self_mode,
+            } => {
+                commands::target::run_target(self.config.as_deref(), url, dry_run, self_mode).await
             }
             Commands::Analyze { url } => {
                 commands::analyze::run_analyze(self.config.as_deref(), url).await
@@ -540,6 +548,7 @@ fn run_interactive_menu() -> anyhow::Result<Commands> {
             Commands::Target {
                 url,
                 dry_run: false,
+                self_mode: false,
             }
         }
         3 => {

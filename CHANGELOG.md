@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.8.0] - 2026-04-25
+
+### Added
+- New `--self` flag on `target <repo_url>` command — inherits self-mode behavior from `hunt --self`, applied to a single user-specified repo (clone → private remote → date-branch → commit-per-fix → push)
+- `ContribPipeline::run_targeted_self()` in `orchestrator/pipeline.rs` — single-repo self-mode entry point reusing `hunt_process_repo_self()` for analyze/generate/clone/commit/push
+- `target` command CLI now branches on `self_mode` and renders self-mode stats via `print_result_ext()`
+
 ## [6.7.0] - 2026-04-25
 
 ### Added
