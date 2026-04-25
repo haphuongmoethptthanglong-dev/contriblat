@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- New `--self` flag for `hunt` command — autonomous discovery mode that clones repos locally and pushes fixes to private repos instead of creating PRs on upstream
+- `SelfModeHandler` in `orchestrator/self_mode.rs` — handles clone, private remote setup, date-prefixed branch creation (DD-MM-YYYY), per-fix commits, and push
+- `check_repo_exists()` helper on `GitHubClient` — checks repo existence via API before creation
+- `commits_pushed` field on `PipelineResult` for self-mode tracking
+- `print_result_ext()` in CLI — displays self-mode stats (commits pushed instead of PRs created)
+- 3 new integration tests for self-mode: empty discovery, daily limit bypass, TTL skip
+
 ## [6.5.0] - 2026-04-20
 
 ## [6.5.0] - 2026-04-20

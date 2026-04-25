@@ -184,7 +184,7 @@ async fn run_my_command(arg: &str, config_path: Option<&str>) -> anyhow::Result<
 | Command | Handler | Description |
 |---------|---------|-------------|
 | `run` | `run_run()` | Auto-discover repos, submit PRs |
-| `hunt` | `run_hunt()` | Aggressive multi-round discovery |
+| `hunt` | `run_hunt()` | Aggressive multi-round discovery (`--self`: push to private repos) |
 | `patrol` | `run_patrol()` | Monitor open PRs |
 | `target` | `run_target()` | Target specific repo |
 | `analyze` | `run_analyze()` | Dry-run analysis |

@@ -5,7 +5,7 @@
 **Autonomous AI agent that discovers, analyzes, and submits<br>Pull Requests to open source projects on GitHub.**
 
 [![Rust](https://img.shields.io/badge/Rust-1.75+-f74c00?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![Version](https://img.shields.io/badge/v6.5.0-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/tang-vu/ContribAI/releases)
+[![Version](https://img.shields.io/badge/v6.6.0-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/tang-vu/ContribAI/releases)
 [![License](https://img.shields.io/badge/AGPL--3.0-green?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Tests](https://img.shields.io/badge/602_tests-passing-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
 [![PRs Merged](https://img.shields.io/badge/10_PRs-merged-blueviolet?style=for-the-badge&logo=git&logoColor=white)](HALL_OF_FAME.md)
@@ -98,6 +98,7 @@ contribai login    # Verify auth + switch LLM providers
 
 ```bash
 contribai hunt                # Autonomous: discover → analyze → PR
+contribai hunt --self         # Discover & solve, push to private repos (no PRs)
 contribai target <repo_url>   # Target a specific repo
 contribai analyze <repo_url>  # Dry-run analysis (no PRs)
 contribai interactive         # Browse in ratatui TUI
@@ -226,6 +227,7 @@ export ANTHROPIC_API_KEY="..."      # For Anthropic
 | Goal | Command |
 |:-----|:--------|
 | Discover repos and submit PRs | `contribai hunt` |
+| Discover & push to private repos | `contribai hunt --self` |
 | Target a specific repository | `contribai target <url>` |
 | Solve a specific GitHub issue | `contribai solve <issue_url>` |
 | Monitor your open PRs | `contribai patrol` |
@@ -320,6 +322,7 @@ ContribAI ships with **40+ commands** accessible via CLI or interactive menu.
 
 ```bash
 contribai hunt                        # Autonomous discovery + PRs
+contribai hunt --self                 # Discover & push to private repos
 contribai hunt --dry-run              # Analyze only, no PRs
 contribai run                         # Single pipeline run
 contribai target <url>                # Target specific repo
